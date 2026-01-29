@@ -61,9 +61,11 @@ namespace tts_keyless
         std::string textUtf8 = WideToUtf8(text);
         std::string voiceUtf8 = WideToUtf8(voice.empty() ? L"Brian" : voice);
 
-        std::string path = "/kappa/v2/speech?voice=" + UrlEncode(voiceUtf8) +
-                           "&text=" + UrlEncode(textUtf8);
+        std::string path = "/kappa/v2/speech";
         std::wstring pathW = Utf8ToWide(path);
+        std::string body = "voice=" + UrlEncode(voiceUtf8) +
+                           "&text=" + UrlEncode(textUtf8);
+        std::wstring contentType = L"Content-Type: application/x-www-form-urlencoded\r\n";
 
         HINTERNET session = WinHttpOpen(L"TTSOverlay/1.0",
                                         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
@@ -79,7 +81,7 @@ namespace tts_keyless
             return out;
         }
 
-        HINTERNET request = WinHttpOpenRequest(connect, L"GET", pathW.c_str(),
+        HINTERNET request = WinHttpOpenRequest(connect, L"POST", pathW.c_str(),
                                                nullptr, WINHTTP_NO_REFERER,
                                                WINHTTP_DEFAULT_ACCEPT_TYPES,
                                                WINHTTP_FLAG_SECURE);
@@ -91,12 +93,32 @@ namespace tts_keyless
         }
 
         BOOL ok = WinHttpSendRequest(request,
-                                     WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-                                     WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+                                     contentType.c_str(),
+                                     (DWORD)contentType.size(),
+                                     (LPVOID)body.data(),
+                                     (DWORD)body.size(),
+                                     (DWORD)body.size(),
+                                     0);
         if (ok) ok = WinHttpReceiveResponse(request, nullptr);
 
         if (ok)
         {
+            DWORD statusCode = 0;
+            DWORD statusSize = sizeof(statusCode);
+            if (!WinHttpQueryHeaders(request,
+                                     WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                     WINHTTP_HEADER_NAME_BY_INDEX,
+                                     &statusCode,
+                                     &statusSize,
+                                     WINHTTP_NO_HEADER_INDEX) ||
+                statusCode < 200 || statusCode >= 300)
+            {
+                WinHttpCloseHandle(request);
+                WinHttpCloseHandle(connect);
+                WinHttpCloseHandle(session);
+                return out;
+            }
+
             for (;;)
             {
                 DWORD available = 0;

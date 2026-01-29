@@ -30,9 +30,12 @@ static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, boo
     {
         auto audio = tts_keyless::speak_to_audio_memory(text);
         if (!audio.empty()) return audio;
+        return tts_sapi::speak_to_wav_memory(text);
     }
 
-    return tts_sapi::speak_to_wav_memory(text);
+    auto audio = tts_sapi::speak_to_wav_memory(text);
+    if (!audio.empty()) return audio;
+    return tts_keyless::speak_to_audio_memory(text);
 }
 
 static void OnCommittedText(const std::wstring& text)
