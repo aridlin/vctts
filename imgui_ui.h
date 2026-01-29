@@ -16,6 +16,7 @@ enum class UiAction
     Quit,
     StartFromConfig,   // config done => hide window, enable hotkeys
     StopRecording,     // user pressed Stop/Speak
+    TestTts,
 };
 
 struct ImGuiUi

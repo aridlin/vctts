@@ -2,12 +2,33 @@
 #include "win32_window.h"
 #include "d3d11_renderer.h"
 #include "imgui_ui.h"
-
+#include "keyboard_hook.h"
+#include "controller.h"
+#include "audio_devices.h"
+#include "audio_playback.h"
+#include "tts_sapi.h"
 #include <windows.h>
-
+#include <objbase.h>
+#include <thread>
+ 
 // We need access to the renderer inside the Win32 message handler:
 static D3D11Renderer* g_renderer = nullptr;
+// Globals used by C-style callbacks
+static Controller* g_ctrl = nullptr;
+static AppState*   g_state = nullptr;
 
+static void OnCommittedText(const std::wstring& text)
+{
+    if (!g_state || text.empty()) return;
+    auto wav = tts_sapi::speak_to_wav_memory(text);
+    audio_playback::play_wav_to_selected_async(wav, *g_state);
+}
+
+static void HookToggle(AppState&) { if (g_ctrl) g_ctrl->toggle_recording(); }
+static void HookStop(AppState&) { if (g_ctrl) g_ctrl->stop_recording(); }
+static void HookAppend(AppState&, const wchar_t* t, int n) { if (g_ctrl) g_ctrl->on_append_text(t, n); }
+static void HookBackspace(AppState&) { if (g_ctrl) g_ctrl->on_backspace(); }
+static void HookExit(AppState& s) { s.exitRequested.store(true); }
 // Hook Win32 messages so ImGui gets input and renderer resizes on WM_SIZE.
 static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT& outResult)
 {
@@ -34,6 +55,7 @@ static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LR
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 {
     AppState state;
+    g_state = &state;
 
     // COM init (needed for audio device enumeration later; safe even if unused now)
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -63,6 +85,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 
     // Install message handler (ImGui + WM_SIZE -> renderer.resize)
     win32_window::set_msg_handler(MainMsgHandler);
+    
+    // Fill device list for config UI
+    RefreshOutputDevices(state);
 
     // Init ImGui UI
     ImGuiUi ui;
@@ -71,6 +96,25 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     // Show window at startup (config screen)
     win32_window::show(state);
     win32_window::set_topmost(state, true);
+    // Controller: show/hide/focus + commit callback
+    ControllerCallbacks cbs{};
+    cbs.onCommittedText = &OnCommittedText;
+    Controller ctrl(state, cbs);
+    g_ctrl = &ctrl;
+
+    // Global keyboard hook
+    HookCallbacks hcb{};
+    hcb.onToggleRecording = &HookToggle;
+    hcb.onStopRecording   = &HookStop;
+    hcb.onAppendText      = &HookAppend;
+    hcb.onBackspace       = &HookBackspace;
+    hcb.onExit            = &HookExit;
+
+    if (!keyboard_hook::install(state, hcb))
+    {
+        MessageBoxW(nullptr, L"Failed to install keyboard hook.", L"Error", MB_ICONERROR);
+        state.exitRequested.store(true);
+    }
 
     // Main loop
     MSG msg{};
@@ -86,7 +130,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         }
         if (state.exitRequested.load())
             break;
-
+        // Timeout enforcement while recording
+        ctrl.tick_timeout();
         // If window is hidden (after Start), keep CPU chill.
         if (!IsWindowVisible(state.hwnd))
         {
@@ -109,10 +154,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         }
         else if (action == UiAction::StopRecording)
         {
-            // Placeholder: hook module will call real stop later.
-            // For now, just stop flag and hide.
-            state.recording.store(false);
-            win32_window::hide(state);
+            ctrl.stop_recording();
+        }
+        else if (action == UiAction::TestTts)
+        {
+            std::thread([]{
+                if (!g_state) return;
+                auto wav = tts_sapi::speak_to_wav_memory(L"Test text to speech.");
+                audio_playback::play_wav_to_selected_async(wav, *g_state);
+            }).detach();
         }
 
         // Render + present
@@ -124,6 +174,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 
     // Cleanup
     ui.shutdown();
+    keyboard_hook::uninstall();
+    audio_playback::stop_all();
     renderer.shutdown();
     win32_window::destroy(state, hInstance, kClassName);
 

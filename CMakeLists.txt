@@ -31,6 +31,7 @@ target_include_directories(tts_overlay PRIVATE
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/miniaudio
 )
 
 # Force wide-char WinAPI
@@ -54,5 +55,6 @@ target_link_libraries(tts_overlay PRIVATE
     winmm
     propsys
     sapi
+    avrt
 )
 

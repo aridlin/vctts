@@ -109,10 +109,11 @@ UiAction ImGuiUi::draw_config(AppState& s)
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Test TTS (default output for now)")) {
-        // Placeholder: main.cpp will later handle a proper test action.
-        // For now we can just show that the button exists.
+    if (ImGui::Button("Test TTS")) {
+        ImGui::End();
+        return UiAction::TestTts;
     }
+
 
     ImGui::End();
     return UiAction::None;
@@ -147,17 +148,8 @@ UiAction ImGuiUi::draw_recording(AppState& s)
         ImGui::End();
         return UiAction::StopRecording;
     }
-
-    ImGui::End();
-    return UiAction::None;
-}
-
-// Temporary stub until you add audio_devices.cpp.
-// This prevents linker errors if you haven't added device enumeration yet.
-void RefreshOutputDevices(AppState& s)
-{
-    // Do nothing by default. We'll implement properly in audio_devices.cpp.
-    // Keeping it here avoids breaking compilation while we build up the project.
-    (void)s;
-}
-
+UiAction ImGuiUi::draw_recording(AppState& s)
+ 
+     ImGui::End();
+     return UiAction::None;
+ }
