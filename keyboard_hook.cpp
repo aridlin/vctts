@@ -26,6 +26,23 @@ static void update_modifier(DWORD vk, bool down)
     }
 }
 
+static void sync_modifiers_from_async()
+{
+    const bool shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+    const bool ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+    const bool altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+
+    if (g_shift.load() != shiftDown) g_shift.store(shiftDown);
+    if (g_ctrl.load() != ctrlDown) g_ctrl.store(ctrlDown);
+    if (g_alt.load() != altDown) g_alt.store(altDown);
+
+    if (g_state) {
+        g_state->shift.store(g_shift.load());
+        g_state->ctrl.store(g_ctrl.load());
+        g_state->alt.store(g_alt.load());
+    }
+}
+
 static bool debounce_ok()
 {
     auto now = std::chrono::steady_clock::now();
@@ -62,6 +79,8 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
     const KBDLLHOOKSTRUCT* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lParam);
     const bool down = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
     const bool up   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
+
+    sync_modifiers_from_async();
 
     // Modifiers
     if (k->vkCode == VK_SHIFT || k->vkCode == VK_LSHIFT || k->vkCode == VK_RSHIFT ||
