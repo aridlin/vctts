@@ -1,3 +1,11 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx11.h"
+
 #include "app_state.h"
 #include "win32_window.h"
 #include "d3d11_renderer.h"
@@ -8,13 +16,10 @@
 #include "audio_playback.h"
 #include "tts_sapi.h"
 
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
 #include <objbase.h>
-
 #include <thread>
-#include <utility>
+
+
 
 // We need access to the renderer inside the Win32 message handler:
 static D3D11Renderer* g_renderer = nullptr;

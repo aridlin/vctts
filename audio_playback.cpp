@@ -18,6 +18,14 @@
 // Cancel/replace mechanism: each playback gets a generation number.
 // Starting new playback increments gen; old threads stop when they notice a mismatch.
 static std::atomic<std::uint64_t> g_playGen{0};
+static std::wstring Utf8ToWide(const std::string& s)
+{
+    if (s.empty()) return {};
+    int len = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
+    std::wstring out(len, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), out.data(), len);
+    return out;
+}
 
 namespace audio_playback
 {
@@ -100,7 +108,7 @@ namespace audio_playback
 
             AudioDevice ad;
             ad.id = L""; // selection is by index, ID not needed in AppState
-            ad.name = AppState::utf8ToWide(nameUtf8);
+            ad.name = Utf8ToWide(nameUtf8);
 
             s.outDevices.push_back(std::move(ad));
             s.outDevicesUtf8.push_back(std::move(nameUtf8));
