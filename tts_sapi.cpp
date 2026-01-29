@@ -25,6 +25,18 @@ namespace tts_sapi
         wfx.cbSize = 0;
     }
 
+    static void fill_wfx_16k_mono_16(WAVEFORMATEX& wfx)
+    {
+        wfx = {};
+        wfx.wFormatTag = WAVE_FORMAT_PCM;
+        wfx.nChannels = 1;
+        wfx.nSamplesPerSec = 16000;
+        wfx.wBitsPerSample = 16;
+        wfx.nBlockAlign = (wfx.nChannels * wfx.wBitsPerSample) / 8;
+        wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
+        wfx.cbSize = 0;
+    }
+
     std::vector<std::uint8_t> speak_to_wav_memory(const std::wstring& text, int rate, int volume)
     {
         std::vector<std::uint8_t> out;
@@ -33,7 +45,7 @@ namespace tts_sapi
         if (volume < 0) volume = 0;
         if (volume > 100) volume = 100;
 
-        HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
         bool didInit = SUCCEEDED(hr);
         if (hr == RPC_E_CHANGED_MODE) didInit = false;
         if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) return out;
@@ -57,6 +69,11 @@ namespace tts_sapi
         fill_wfx_48k_stereo_16(wfx);
 
         hr = spStream->SetBaseStream(baseStream.Get(), SPDFID_WaveFormatEx, &wfx);
+        if (FAILED(hr))
+        {
+            fill_wfx_16k_mono_16(wfx);
+            hr = spStream->SetBaseStream(baseStream.Get(), SPDFID_WaveFormatEx, &wfx);
+        }
         if (FAILED(hr)) { if (didInit) CoUninitialize(); return out; }
 
         hr = voice->SetOutput(spStream.Get(), TRUE);
