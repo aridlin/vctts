@@ -79,7 +79,7 @@ namespace tts_sapi
         hr = voice->SetOutput(spStream.Get(), TRUE);
         if (FAILED(hr)) { if (didInit) CoUninitialize(); return out; }
 
-        hr = voice->Speak(text.c_str(), SPF_DEFAULT, nullptr);
+        hr = voice->Speak(text.c_str(), SPF_IS_NOT_XML, nullptr);
 
         // IMPORTANT: finalize WAV headers/chunks for strict parsers
         voice->SetOutput(nullptr, TRUE);

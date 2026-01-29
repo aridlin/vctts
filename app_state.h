@@ -21,6 +21,7 @@ struct AppState {
     std::atomic<bool> exitRequested{false};
     std::atomic<bool> recording{false};
     std::atomic<bool> configDone{false};
+    std::atomic<bool> useKeylessBackup{false};
 
     // ---- Timings ----
     int timeoutSeconds = 30;
@@ -107,4 +108,3 @@ struct AppState {
         return out;
     }
 };
-

@@ -122,7 +122,7 @@ namespace audio_playback
         return true;
     }
 
-    static bool decode_wav_to_pcm_f32(const std::vector<std::uint8_t>& wav, DecodedPcm& out)
+    static bool decode_audio_to_pcm_f32(const std::vector<std::uint8_t>& audioData, DecodedPcm& out)
     {
         const ma_uint32 kRate = 48000;
         const ma_uint32 kCh   = 2;
@@ -130,7 +130,7 @@ namespace audio_playback
         ma_decoder_config dcfg = ma_decoder_config_init(ma_format_f32, kCh, kRate);
 
         ma_decoder dec;
-        if (ma_decoder_init_memory(wav.data(), wav.size(), &dcfg, &dec) != MA_SUCCESS)
+        if (ma_decoder_init_memory(audioData.data(), audioData.size(), &dcfg, &dec) != MA_SUCCESS)
             return false;
 
         out.channels = kCh;
@@ -172,7 +172,7 @@ namespace audio_playback
 
     void play_wav_to_selected_async(const std::vector<std::uint8_t>& wav, const AppState& s)
     {
-        if (wav.size() < 44) return;
+        if (wav.empty()) return;
 
         const int idxA = s.devA;
         const int idxB = s.devB;
@@ -204,7 +204,7 @@ namespace audio_playback
             if (b < 0 || b >= (int)playbackCount) b = 0;
 
             DecodedPcm audio;
-            if (!decode_wav_to_pcm_f32(wavCopy, audio))
+            if (!decode_audio_to_pcm_f32(wavCopy, audio))
             {
                 ma_context_uninit(&ctx);
                 return;

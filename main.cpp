@@ -7,6 +7,7 @@
 #include "audio_devices.h"
 #include "audio_playback.h"
 #include "tts_sapi.h"
+#include "tts_keyless.h"
 
 #include <windows.h>
 #include <objbase.h>
@@ -23,15 +24,27 @@ static D3D11Renderer* g_renderer = nullptr;
 static Controller* g_ctrl = nullptr;
 static AppState*   g_state = nullptr;
 
+static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, bool preferKeyless)
+{
+    if (preferKeyless)
+    {
+        auto audio = tts_keyless::speak_to_audio_memory(text);
+        if (!audio.empty()) return audio;
+    }
+
+    return tts_sapi::speak_to_wav_memory(text);
+}
+
 static void OnCommittedText(const std::wstring& text)
 {
     if (!g_state || text.empty()) return;
 
     std::wstring copy = text;
-    std::thread([copy]() {
-        auto wav = tts_sapi::speak_to_wav_memory(copy);
-        if (wav.size() < 44) {
-            MessageBoxW(nullptr, L"SAPI produced an invalid/empty WAV.", L"TTS Error", MB_ICONERROR);
+    const bool preferKeyless = g_state->useKeylessBackup.load();
+    std::thread([copy, preferKeyless]() {
+        auto wav = SpeakWithFallback(copy, preferKeyless);
+        if (wav.empty()) {
+            MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
             return;
         }
         audio_playback::play_wav_to_selected_async(wav, *g_state);
@@ -162,9 +175,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         {
             std::thread([]{
                 if (!g_state) return;
-                auto wav = tts_sapi::speak_to_wav_memory(L"Test text to speech.");
-                if (wav.size() < 44) {
-                    MessageBoxW(nullptr, L"SAPI produced an invalid/empty WAV.", L"TTS Error", MB_ICONERROR);
+                auto wav = SpeakWithFallback(L"Test text to speech.", g_state->useKeylessBackup.load());
+                if (wav.empty()) {
+                    MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
                     return;
                 }
                 audio_playback::play_wav_to_selected_async(wav, *g_state);
@@ -186,4 +199,3 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     CoUninitialize();
     return 0;
 }
-

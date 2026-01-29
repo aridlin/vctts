@@ -92,6 +92,14 @@ UiAction ImGuiUi::draw_config(AppState& s)
 
     ImGui::Separator();
     ImGui::TextDisabled("Hotkeys work after you press Start.");
+    bool useKeyless = s.useKeylessBackup.load();
+    const char* keylessLabel = useKeyless ? "Keyless backup: ON" : "Keyless backup: OFF";
+    if (ImGui::Button(keylessLabel)) {
+        s.useKeylessBackup.store(!useKeyless);
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("Uses an online keyless TTS if enabled.");
+
     if (ImGui::Button("Start")) {
         s.configDone.store(true);
         ImGui::End();
@@ -130,6 +138,7 @@ UiAction ImGuiUi::draw_recording(AppState& s)
 
     ImGui::Separator();
     ImGui::TextDisabled("Recording: %s", s.recording.load() ? "YES" : "no");
+    ImGui::TextDisabled("Keyless backup: %s", s.useKeylessBackup.load() ? "ON" : "OFF");
 
     std::wstring copy = s.copyBuffer();
     std::string preview = AppState::sanitizePreview(copy);

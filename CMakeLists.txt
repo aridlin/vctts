@@ -13,6 +13,7 @@ add_executable(tts_overlay WIN32
     imgui_ui.cpp
     keyboard_hook.cpp
     tts_sapi.cpp
+    tts_keyless.cpp
     audio_devices.cpp
     audio_playback.cpp
 
@@ -56,5 +57,5 @@ target_link_libraries(tts_overlay PRIVATE
     propsys
     sapi
     avrt
+    winhttp
 )
-
