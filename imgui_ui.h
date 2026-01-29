@@ -1,5 +1,4 @@
 #pragma once
-
 #include "app_state.h"
 #include "d3d11_renderer.h"
 
@@ -14,14 +13,13 @@ enum class UiAction
     StartFromConfig,
     StopRecording,
     TestTts,
-    TestTone,
+    TestTone
 };
 
 struct ImGuiUi
 {
     void init(HWND hwnd, D3D11Renderer& r);
     void shutdown();
-
     UiAction draw(AppState& s);
 
     UiAction draw_config(AppState& s);

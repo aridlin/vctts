@@ -10,11 +10,11 @@ add_executable(tts_overlay WIN32
     main.cpp
     win32_window.cpp
     d3d11_renderer.cpp
-    audio_playback.cpp
-    audio_devices.cpp
     imgui_ui.cpp
     keyboard_hook.cpp
     tts_sapi.cpp
+    audio_devices.cpp
+    audio_playback.cpp
 
     # Dear ImGui core
     ${IMGUI_DIR}/imgui.cpp
@@ -22,7 +22,7 @@ add_executable(tts_overlay WIN32
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
 
-    # Dear ImGui backends (Win32 + D3D11)
+    # Dear ImGui backends
     ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
     ${IMGUI_DIR}/backends/imgui_impl_dx11.cpp
 )
@@ -34,13 +34,13 @@ target_include_directories(tts_overlay PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/miniaudio
 )
 
-# Force wide-char WinAPI
 target_compile_definitions(tts_overlay PRIVATE
     UNICODE
     _UNICODE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
 )
 
-# D3D11 + WinAPI + COM/audio bits (you already use these)
 target_link_libraries(tts_overlay PRIVATE
     d3d11
     dxgi

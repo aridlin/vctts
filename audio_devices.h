@@ -1,7 +1,6 @@
 #pragma once
 #include "app_state.h"
 
-// Legacy name used by UI: fills s.outDevices / s.outDevicesUtf8 and clamps indices.
-// Internally this uses miniaudio enumeration (same backend as playback).
+// Fills s.outDevices / s.outDevicesUtf8 and clamps s.devA/s.devB.
+// Uses the SAME backend/order as playback (miniaudio).
 void RefreshOutputDevices(AppState& s);
-

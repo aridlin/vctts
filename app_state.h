@@ -1,7 +1,4 @@
 #pragma once
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <windows.h>
 
 #include <atomic>
@@ -37,25 +34,18 @@ struct AppState {
     std::atomic<bool> alt{false};
 
     // ---- Text buffer (Unicode) ----
-    std::mutex bufMutex;
+    mutable std::mutex bufMutex;
     std::wstring buffer;
 
     // ---- Audio device config (GUI-selected) ----
     std::vector<AudioDevice> outDevices;
-    std::vector<std::string> outDevicesUtf8; // UI-friendly names (UTF-8)
+    std::vector<std::string> outDevicesUtf8;
     int devA = 0;
     int devB = 0;
 
-    // ---- Buffer ops ----
     void clearBuffer() {
         std::lock_guard<std::mutex> lock(bufMutex);
         buffer.clear();
-    }
-
-    void appendChar(wchar_t c) {
-        std::lock_guard<std::mutex> lock(bufMutex);
-        buffer.push_back(c);
-        lastInput = std::chrono::steady_clock::now();
     }
 
     void appendSpan(const wchar_t* p, size_t n) {
@@ -72,7 +62,7 @@ struct AppState {
     }
 
     std::wstring copyBuffer() const {
-        std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(bufMutex));
+        std::lock_guard<std::mutex> lock(bufMutex);
         return buffer;
     }
 
@@ -84,17 +74,12 @@ struct AppState {
     }
 
     static std::string sanitizePreview(const std::wstring& ws) {
-        // ASCII passthrough, Polish diacritics -> %x style, unknown -> '?'
         std::string out;
         out.reserve(ws.size());
-
         auto emit = [&](const char* s) { out += s; };
 
         for (wchar_t c : ws) {
-            if (c >= 32 && c < 127) {
-                out.push_back(static_cast<char>(c));
-                continue;
-            }
+            if (c >= 32 && c < 127) { out.push_back((char)c); continue; }
             switch (c) {
                 case L'ą': emit("%a"); break;
                 case L'ć': emit("%c"); break;

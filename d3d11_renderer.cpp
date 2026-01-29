@@ -1,16 +1,10 @@
 #include "d3d11_renderer.h"
 
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "dxgi.lib")
-// (d3dcompiler is only needed if you compile shaders yourself; ImGui doesn't require it)
-
 static void create_rtv(D3D11Renderer& r)
 {
     if (!r.swap || !r.device) return;
-
     ID3D11Texture2D* backBuffer = nullptr;
-    if (SUCCEEDED(r.swap->GetBuffer(0, IID_PPV_ARGS(&backBuffer))) && backBuffer)
-    {
+    if (SUCCEEDED(r.swap->GetBuffer(0, IID_PPV_ARGS(&backBuffer))) && backBuffer) {
         r.device->CreateRenderTargetView(backBuffer, nullptr, &r.rtv);
         backBuffer->Release();
     }
@@ -63,8 +57,6 @@ void D3D11Renderer::resize(UINT width, UINT height)
     if (width == 0 || height == 0) return;
 
     if (rtv) { rtv->Release(); rtv = nullptr; }
-
-    // ResizeBuffers: buffer count 0 means "keep the existing count"
     swap->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
     create_rtv(*this);
 }

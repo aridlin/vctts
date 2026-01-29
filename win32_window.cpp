@@ -1,23 +1,16 @@
 #include "win32_window.h"
 
-namespace
-{
-    // One optional handler (ImGui backend hook, etc.)
+namespace {
     Win32MsgHandler g_msgHandler = nullptr;
 }
 
 namespace win32_window
 {
-    void set_msg_handler(Win32MsgHandler handler)
-    {
-        g_msgHandler = handler;
-    }
+    void set_msg_handler(Win32MsgHandler handler) { g_msgHandler = handler; }
 
     LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        // Allow external handler (e.g., ImGui_ImplWin32_WndProcHandler)
-        if (g_msgHandler)
-        {
+        if (g_msgHandler) {
             LRESULT out = 0;
             if (g_msgHandler(hWnd, msg, wParam, lParam, out))
                 return out;
@@ -30,11 +23,9 @@ namespace win32_window
             return 0;
 
         case WM_SYSCOMMAND:
-            // Disable the ALT menu
             if ((wParam & 0xfff0) == SC_KEYMENU)
                 return 0;
             break;
-
         default:
             break;
         }
@@ -59,18 +50,17 @@ namespace win32_window
             return false;
 
         HWND hwnd = CreateWindowExW(
-            WS_EX_APPWINDOW,               // ex style
+            WS_EX_APPWINDOW,
             className,
             title,
-            WS_OVERLAPPEDWINDOW,           // style
+            WS_OVERLAPPEDWINDOW,
             x, y, w, h,
             nullptr, nullptr,
             hInstance,
             nullptr
         );
 
-        if (!hwnd)
-        {
+        if (!hwnd) {
             UnregisterClassW(className, hInstance);
             return false;
         }
@@ -81,8 +71,7 @@ namespace win32_window
 
     void destroy(AppState& state, HINSTANCE hInstance, const wchar_t* className)
     {
-        if (state.hwnd)
-        {
+        if (state.hwnd) {
             DestroyWindow(state.hwnd);
             state.hwnd = nullptr;
         }
@@ -126,4 +115,3 @@ namespace win32_window
         state.prevForeground = nullptr;
     }
 }
-
