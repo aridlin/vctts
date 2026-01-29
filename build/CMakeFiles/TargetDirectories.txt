@@ -1,0 +1,3 @@
+C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/tts_overlay.dir
+C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/edit_cache.dir
+C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/rebuild_cache.dir
