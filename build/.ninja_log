@@ -22,3 +22,6 @@
 11094	11194	7914084103423276	tts_overlay.exe	2762002738b31376
 13	1539	7914089575319999	CMakeFiles/tts_overlay.dir/audio_devices.cpp.obj	e0c63485df9567d7
 15	1855	7914089575334552	CMakeFiles/tts_overlay.dir/imgui_ui.cpp.obj	eb5130ac9cee04e8
+8	2133	7914097781401325	CMakeFiles/tts_overlay.dir/main.cpp.obj	62f44284ce275891
+12	11947	7914097781446695	CMakeFiles/tts_overlay.dir/audio_playback.cpp.obj	d1d1973f77a186ee
+11947	12059	7914097900797451	tts_overlay.exe	2762002738b31376
