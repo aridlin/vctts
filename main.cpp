@@ -595,7 +595,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
         if (g_outDevicesUtf8.empty()) {
             ImGui::TextUnformatted("No output devices found.");
         } else {
-            // Device A
             ImGui::TextUnformatted("Device A:");
             const char* a = g_outDevicesUtf8[g_devA].c_str();
             if (ImGui::BeginCombo("##devA", a)) {
@@ -607,7 +606,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
                 ImGui::EndCombo();
             }
 
-            // Device B
             ImGui::TextUnformatted("Device B:");
             const char* b = g_outDevicesUtf8[g_devB].c_str();
             if (ImGui::BeginCombo("##devB", b)) {
@@ -622,31 +620,45 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
             ImGui::Spacing();
             if (ImGui::Button("Start")) {
                 g_configDone.store(true);
-                // hide until Ctrl+Backspace
-                ShowWindow(g_hwnd, SW_HIDE);
+                ShowWindow(g_hwnd, SW_HIDE); // hide until Ctrl+Backspace
             }
 
             ImGui::SameLine();
             if (ImGui::Button("Test TTS (default output for now)")) {
-                std::thread([]{
+                std::thread([] {
                     auto wav = SapiSpeakToWavMemory(L"Test text to speech.");
                     PlayWavBytes_DefaultDeviceAsync(wav);
                 }).detach();
             }
         }
-
-        ImGui::End();
-        // IMPORTANT: skip the recording UI entirely while in config
-        ImGui::Render();
-        // (continue your render pipeline as usual)
     } else {
-        // ----- your existing recording UI -----
         ImGui::TextDisabled("Recording: %s  |  Toggle: Ctrl+Backspace  |  Stop: Enter  |  Exit: Ctrl+Shift+Tab+E",
                             g_recording.load() ? "YES" : "no");
-        //...
+
+        std::wstring copy;
+        {
+            std::lock_guard<std::mutex> lock(g_bufMutex);
+            copy = g_buffer;
+        }
+        std::string preview = SanitizePreview(copy);
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Preview:");
+        ImGui::BeginChild("##preview", ImVec2(0, 220), true);
+        ImGui::TextUnformatted(preview.c_str());
+        ImGui::EndChild();
+
+        if (ImGui::Button("Stop & Speak")) {
+            StopRecording();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Exit")) {
+            g_exitRequested.store(true);
+        }
     }
 
     ImGui::End();
+
 
 
         ImGui::Render();
