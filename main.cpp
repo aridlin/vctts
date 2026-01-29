@@ -39,6 +39,7 @@ static void OnCommittedText(const std::wstring& text)
 
     // Generate WAV (SAPI) and play to selected devices (miniaudio).
     auto wav = tts_sapi::speak_to_wav_memory(text);
+    if (wav.empty()) MessageBoxW(nullptr, L"SAPI produced empty WAV", L"Audio debug", MB_OK);
     audio_playback::play_wav_to_selected_async(wav, *g_state);
 }
 
