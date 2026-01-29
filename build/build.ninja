@@ -51,7 +51,7 @@ build cmake_object_order_depends_target_tts_overlay: phony || .
 
 build CMakeFiles/tts_overlay.dir/main.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/main.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\main.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -63,7 +63,7 @@ build CMakeFiles/tts_overlay.dir/main.cpp.obj: CXX_COMPILER__tts_overlay_unscann
 
 build CMakeFiles/tts_overlay.dir/win32_window.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/win32_window.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\win32_window.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -75,32 +75,8 @@ build CMakeFiles/tts_overlay.dir/win32_window.cpp.obj: CXX_COMPILER__tts_overlay
 
 build CMakeFiles/tts_overlay.dir/d3d11_renderer.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/d3d11_renderer.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\d3d11_renderer.cpp.obj.d
-  FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
-  INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
-  OBJECT_DIR = CMakeFiles\tts_overlay.dir
-  OBJECT_FILE_DIR = CMakeFiles\tts_overlay.dir
-  TARGET_COMPILE_PDB = CMakeFiles\tts_overlay.dir\
-  TARGET_PDB = tts_overlay.pdb
-  TARGET_SUPPORT_DIR = CMakeFiles\tts_overlay.dir
-
-build CMakeFiles/tts_overlay.dir/audio_playback.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/audio_playback.cpp || cmake_object_order_depends_target_tts_overlay
-  CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
-  DEP_FILE = CMakeFiles\tts_overlay.dir\audio_playback.cpp.obj.d
-  FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
-  INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
-  OBJECT_DIR = CMakeFiles\tts_overlay.dir
-  OBJECT_FILE_DIR = CMakeFiles\tts_overlay.dir
-  TARGET_COMPILE_PDB = CMakeFiles\tts_overlay.dir\
-  TARGET_PDB = tts_overlay.pdb
-  TARGET_SUPPORT_DIR = CMakeFiles\tts_overlay.dir
-
-build CMakeFiles/tts_overlay.dir/audio_devices.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/audio_devices.cpp || cmake_object_order_depends_target_tts_overlay
-  CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
-  DEP_FILE = CMakeFiles\tts_overlay.dir\audio_devices.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
   OBJECT_DIR = CMakeFiles\tts_overlay.dir
@@ -111,7 +87,7 @@ build CMakeFiles/tts_overlay.dir/audio_devices.cpp.obj: CXX_COMPILER__tts_overla
 
 build CMakeFiles/tts_overlay.dir/imgui_ui.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/imgui_ui.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\imgui_ui.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -123,7 +99,7 @@ build CMakeFiles/tts_overlay.dir/imgui_ui.cpp.obj: CXX_COMPILER__tts_overlay_uns
 
 build CMakeFiles/tts_overlay.dir/keyboard_hook.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/keyboard_hook.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\keyboard_hook.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -135,8 +111,32 @@ build CMakeFiles/tts_overlay.dir/keyboard_hook.cpp.obj: CXX_COMPILER__tts_overla
 
 build CMakeFiles/tts_overlay.dir/tts_sapi.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/tts_sapi.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\tts_sapi.cpp.obj.d
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
+  INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
+  OBJECT_DIR = CMakeFiles\tts_overlay.dir
+  OBJECT_FILE_DIR = CMakeFiles\tts_overlay.dir
+  TARGET_COMPILE_PDB = CMakeFiles\tts_overlay.dir\
+  TARGET_PDB = tts_overlay.pdb
+  TARGET_SUPPORT_DIR = CMakeFiles\tts_overlay.dir
+
+build CMakeFiles/tts_overlay.dir/audio_devices.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/audio_devices.cpp || cmake_object_order_depends_target_tts_overlay
+  CONFIG = Release
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
+  DEP_FILE = CMakeFiles\tts_overlay.dir\audio_devices.cpp.obj.d
+  FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
+  INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
+  OBJECT_DIR = CMakeFiles\tts_overlay.dir
+  OBJECT_FILE_DIR = CMakeFiles\tts_overlay.dir
+  TARGET_COMPILE_PDB = CMakeFiles\tts_overlay.dir\
+  TARGET_PDB = tts_overlay.pdb
+  TARGET_SUPPORT_DIR = CMakeFiles\tts_overlay.dir
+
+build CMakeFiles/tts_overlay.dir/audio_playback.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/audio_playback.cpp || cmake_object_order_depends_target_tts_overlay
+  CONFIG = Release
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
+  DEP_FILE = CMakeFiles\tts_overlay.dir\audio_playback.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
   OBJECT_DIR = CMakeFiles\tts_overlay.dir
@@ -147,7 +147,7 @@ build CMakeFiles/tts_overlay.dir/tts_sapi.cpp.obj: CXX_COMPILER__tts_overlay_uns
 
 build CMakeFiles/tts_overlay.dir/extern/imgui/imgui.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/imgui.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\extern\imgui\imgui.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -159,7 +159,7 @@ build CMakeFiles/tts_overlay.dir/extern/imgui/imgui.cpp.obj: CXX_COMPILER__tts_o
 
 build CMakeFiles/tts_overlay.dir/extern/imgui/imgui_draw.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/imgui_draw.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\extern\imgui\imgui_draw.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -171,7 +171,7 @@ build CMakeFiles/tts_overlay.dir/extern/imgui/imgui_draw.cpp.obj: CXX_COMPILER__
 
 build CMakeFiles/tts_overlay.dir/extern/imgui/imgui_tables.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/imgui_tables.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\extern\imgui\imgui_tables.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -183,7 +183,7 @@ build CMakeFiles/tts_overlay.dir/extern/imgui/imgui_tables.cpp.obj: CXX_COMPILER
 
 build CMakeFiles/tts_overlay.dir/extern/imgui/imgui_widgets.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/imgui_widgets.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\extern\imgui\imgui_widgets.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -195,7 +195,7 @@ build CMakeFiles/tts_overlay.dir/extern/imgui/imgui_widgets.cpp.obj: CXX_COMPILE
 
 build CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_win32.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends/imgui_impl_win32.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\extern\imgui\backends\imgui_impl_win32.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -207,7 +207,7 @@ build CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_win32.cpp.obj:
 
 build CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_dx11.cpp.obj: CXX_COMPILER__tts_overlay_unscanned_Release C$:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends/imgui_impl_dx11.cpp || cmake_object_order_depends_target_tts_overlay
   CONFIG = Release
-  DEFINES = -DUNICODE -D_UNICODE
+  DEFINES = -DNOMINMAX -DUNICODE -DWIN32_LEAN_AND_MEAN -D_UNICODE
   DEP_FILE = CMakeFiles\tts_overlay.dir\extern\imgui\backends\imgui_impl_dx11.cpp.obj.d
   FLAGS = -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   INCLUDES = -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui -IC:/Users/aridlin/code/cli/tts/cppversion/extern/imgui/backends -IC:/Users/aridlin/code/cli/tts/cppversion -IC:/Users/aridlin/code/cli/tts/cppversion/extern/miniaudio
@@ -225,7 +225,7 @@ build CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_dx11.cpp.obj: 
 #############################################
 # Link the executable tts_overlay.exe
 
-build tts_overlay.exe: CXX_EXECUTABLE_LINKER__tts_overlay_Release CMakeFiles/tts_overlay.dir/main.cpp.obj CMakeFiles/tts_overlay.dir/win32_window.cpp.obj CMakeFiles/tts_overlay.dir/d3d11_renderer.cpp.obj CMakeFiles/tts_overlay.dir/audio_playback.cpp.obj CMakeFiles/tts_overlay.dir/audio_devices.cpp.obj CMakeFiles/tts_overlay.dir/imgui_ui.cpp.obj CMakeFiles/tts_overlay.dir/keyboard_hook.cpp.obj CMakeFiles/tts_overlay.dir/tts_sapi.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui_draw.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui_tables.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui_widgets.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_win32.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_dx11.cpp.obj
+build tts_overlay.exe: CXX_EXECUTABLE_LINKER__tts_overlay_Release CMakeFiles/tts_overlay.dir/main.cpp.obj CMakeFiles/tts_overlay.dir/win32_window.cpp.obj CMakeFiles/tts_overlay.dir/d3d11_renderer.cpp.obj CMakeFiles/tts_overlay.dir/imgui_ui.cpp.obj CMakeFiles/tts_overlay.dir/keyboard_hook.cpp.obj CMakeFiles/tts_overlay.dir/tts_sapi.cpp.obj CMakeFiles/tts_overlay.dir/audio_devices.cpp.obj CMakeFiles/tts_overlay.dir/audio_playback.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui_draw.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui_tables.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/imgui_widgets.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_win32.cpp.obj CMakeFiles/tts_overlay.dir/extern/imgui/backends/imgui_impl_dx11.cpp.obj
   CONFIG = Release
   FLAGS = -O3 -DNDEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrt
   LINK_FLAGS = -Xlinker /subsystem:windows -fuse-ld=lld-link

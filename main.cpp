@@ -8,10 +8,16 @@
 #include "audio_playback.h"
 #include "tts_sapi.h"
 
-#include "imgui_impl_win32.h"   // ImGui_ImplWin32_WndProcHandler
 #include <windows.h>
 #include <objbase.h>
 #include <thread>
+
+// Include ImGui backend header (where WndProcHandler normally lives)
+#include "imgui_impl_win32.h"
+
+// Some ImGui forks/versions don't expose the symbol in the header depending on macros.
+// This forward-declare makes compilation deterministic.
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 static D3D11Renderer* g_renderer = nullptr;
 static Controller* g_ctrl = nullptr;
@@ -21,7 +27,6 @@ static void OnCommittedText(const std::wstring& text)
 {
     if (!g_state || text.empty()) return;
 
-    // Don’t block the UI thread (hook thread == our app thread)
     std::wstring copy = text;
     std::thread([copy]() {
         auto wav = tts_sapi::speak_to_wav_memory(copy);
@@ -181,3 +186,4 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     CoUninitialize();
     return 0;
 }
+

@@ -4813,8 +4813,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-tkyxk1"
-      binary: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-tkyxk1"
+      source: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kt8pf9"
+      binary: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kt8pf9"
     cmakeVariables:
       CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Users/aridlin/Downloads/clang+llvm-18.1.8-x86_64-pc-windows-msvc/bin/clang-scan-deps.exe"
       CMAKE_CXX_FLAGS: ""
@@ -4825,16 +4825,16 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-tkyxk1'
+        Change Dir: 'C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kt8pf9'
         
-        Run Build Command(s): C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_bb6dc
-        [1/2] C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -D_MBCS  -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -MD -MT CMakeFiles/cmTC_bb6dc.dir/CMakeCXXCompilerABI.cpp.obj -MF CMakeFiles\\cmTC_bb6dc.dir\\CMakeCXXCompilerABI.cpp.obj.d -o CMakeFiles/cmTC_bb6dc.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"
-        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -nostartfiles -nostdlib -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -v -Xlinker /subsystem:console -fuse-ld=lld-link CMakeFiles/cmTC_bb6dc.dir/CMakeCXXCompilerABI.cpp.obj -o cmTC_bb6dc.exe -Xlinker /MANIFEST:EMBED -Xlinker /implib:cmTC_bb6dc.lib -Xlinker /pdb:cmTC_bb6dc.pdb -Xlinker /version:0.0     && cd ."
+        Run Build Command(s): C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_2f810
+        [1/2] C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -D_MBCS  -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -MD -MT CMakeFiles/cmTC_2f810.dir/CMakeCXXCompilerABI.cpp.obj -MF CMakeFiles\\cmTC_2f810.dir\\CMakeCXXCompilerABI.cpp.obj.d -o CMakeFiles/cmTC_2f810.dir/CMakeCXXCompilerABI.cpp.obj -c "C:/Program Files/CMake/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp"
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -nostartfiles -nostdlib -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -v -Xlinker /subsystem:console -fuse-ld=lld-link CMakeFiles/cmTC_2f810.dir/CMakeCXXCompilerABI.cpp.obj -o cmTC_2f810.exe -Xlinker /MANIFEST:EMBED -Xlinker /implib:cmTC_2f810.lib -Xlinker /pdb:cmTC_2f810.pdb -Xlinker /version:0.0     && cd ."
         clang version 18.1.8
         Target: x86_64-pc-windows-msvc
         Thread model: posix
         InstalledDir: C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin
-         "C:\\\\Users\\\\aridlin\\\\Downloads\\\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\\\bin\\\\lld-link" -out:cmTC_bb6dc.exe "-libpath:L:\\\\vs\\\\VC\\\\Tools\\\\MSVC\\\\14.43.34808\\\\lib\\\\x64" "-libpath:L:\\\\vs\\\\VC\\\\Tools\\\\MSVC\\\\14.43.34808\\\\atlmfc\\\\lib\\\\x64" "-libpath:C:\\\\Program Files (x86)\\\\Windows Kits\\\\10\\\\Lib\\\\10.0.22621.0\\\\ucrt\\\\x64" "-libpath:C:\\\\Program Files (x86)\\\\Windows Kits\\\\10\\\\Lib\\\\10.0.22621.0\\\\um\\\\x64" "-libpath:C:\\\\Users\\\\aridlin\\\\Downloads\\\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\\\lib\\\\clang\\\\18\\\\lib\\\\windows" -nologo -debug /subsystem:console CMakeFiles/cmTC_bb6dc.dir/CMakeCXXCompilerABI.cpp.obj /MANIFEST:EMBED /implib:cmTC_bb6dc.lib /pdb:cmTC_bb6dc.pdb /version:0.0
+         "C:\\\\Users\\\\aridlin\\\\Downloads\\\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\\\bin\\\\lld-link" -out:cmTC_2f810.exe "-libpath:L:\\\\vs\\\\VC\\\\Tools\\\\MSVC\\\\14.43.34808\\\\lib\\\\x64" "-libpath:L:\\\\vs\\\\VC\\\\Tools\\\\MSVC\\\\14.43.34808\\\\atlmfc\\\\lib\\\\x64" "-libpath:C:\\\\Program Files (x86)\\\\Windows Kits\\\\10\\\\Lib\\\\10.0.22621.0\\\\ucrt\\\\x64" "-libpath:C:\\\\Program Files (x86)\\\\Windows Kits\\\\10\\\\Lib\\\\10.0.22621.0\\\\um\\\\x64" "-libpath:C:\\\\Users\\\\aridlin\\\\Downloads\\\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\\\lib\\\\clang\\\\18\\\\lib\\\\windows" -nologo -debug /subsystem:console CMakeFiles/cmTC_2f810.dir/CMakeCXXCompilerABI.cpp.obj /MANIFEST:EMBED /implib:cmTC_2f810.lib /pdb:cmTC_2f810.pdb /version:0.0
         
       exitCode: 0
   -
@@ -4898,8 +4898,8 @@ events:
     checks:
       - "Detecting CXX compile features"
     directories:
-      source: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-qefvme"
-      binary: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-qefvme"
+      source: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kw5jig"
+      binary: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kw5jig"
     cmakeVariables:
       CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Users/aridlin/Downloads/clang+llvm-18.1.8-x86_64-pc-windows-msvc/bin/clang-scan-deps.exe"
       CMAKE_CXX_FLAGS: ""
@@ -4909,11 +4909,11 @@ events:
       variable: "CMAKE_CXX_FEATURE_TEST"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-qefvme'
+        Change Dir: 'C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kw5jig'
         
-        Run Build Command(s): C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_f2561
-        [1/2] C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -D_MBCS  -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd   -std=c++14 -MD -MT CMakeFiles/cmTC_f2561.dir/feature_tests.cxx.obj -MF CMakeFiles\\cmTC_f2561.dir\\feature_tests.cxx.obj.d -o CMakeFiles/cmTC_f2561.dir/feature_tests.cxx.obj -c C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-qefvme/feature_tests.cxx
-        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -nostartfiles -nostdlib -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Xlinker /subsystem:console -fuse-ld=lld-link CMakeFiles/cmTC_f2561.dir/feature_tests.cxx.obj -o cmTC_f2561.exe -Xlinker /MANIFEST:EMBED -Xlinker /implib:cmTC_f2561.lib -Xlinker /pdb:cmTC_f2561.pdb -Xlinker /version:0.0   -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -loldnames  && cd ."
+        Run Build Command(s): C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_22072
+        [1/2] C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -D_MBCS  -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd   -std=c++14 -MD -MT CMakeFiles/cmTC_22072.dir/feature_tests.cxx.obj -MF CMakeFiles\\cmTC_22072.dir\\feature_tests.cxx.obj.d -o CMakeFiles/cmTC_22072.dir/feature_tests.cxx.obj -c C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-kw5jig/feature_tests.cxx
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -nostartfiles -nostdlib -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Xlinker /subsystem:console -fuse-ld=lld-link CMakeFiles/cmTC_22072.dir/feature_tests.cxx.obj -o cmTC_22072.exe -Xlinker /MANIFEST:EMBED -Xlinker /implib:cmTC_22072.lib -Xlinker /pdb:cmTC_22072.pdb -Xlinker /version:0.0   -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -loldnames  && cd ."
         
       exitCode: 0
   -
@@ -4928,8 +4928,8 @@ events:
     checks:
       - "Detecting CXX compile features"
     directories:
-      source: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-o96145"
-      binary: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-o96145"
+      source: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-lq5uko"
+      binary: "C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-lq5uko"
     cmakeVariables:
       CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS: "C:/Users/aridlin/Downloads/clang+llvm-18.1.8-x86_64-pc-windows-msvc/bin/clang-scan-deps.exe"
       CMAKE_CXX_FLAGS: ""
@@ -4939,11 +4939,11 @@ events:
       variable: "CMAKE_CXX_FEATURE_TEST"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-o96145'
+        Change Dir: 'C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-lq5uko'
         
-        Run Build Command(s): C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_fe9f7
-        [1/2] C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -D_MBCS  -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd   -std=c++14 -MD -MT CMakeFiles/cmTC_fe9f7.dir/feature_tests.cxx.obj -MF CMakeFiles\\cmTC_fe9f7.dir\\feature_tests.cxx.obj.d -o CMakeFiles/cmTC_fe9f7.dir/feature_tests.cxx.obj -c C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-o96145/feature_tests.cxx
-        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -nostartfiles -nostdlib -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Xlinker /subsystem:console -fuse-ld=lld-link CMakeFiles/cmTC_fe9f7.dir/feature_tests.cxx.obj -o cmTC_fe9f7.exe -Xlinker /MANIFEST:EMBED -Xlinker /implib:cmTC_fe9f7.lib -Xlinker /pdb:cmTC_fe9f7.pdb -Xlinker /version:0.0   -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -loldnames  && cd ."
+        Run Build Command(s): C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_254dc
+        [1/2] C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -D_MBCS  -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd   -std=c++14 -MD -MT CMakeFiles/cmTC_254dc.dir/feature_tests.cxx.obj -MF CMakeFiles\\cmTC_254dc.dir\\feature_tests.cxx.obj.d -o CMakeFiles/cmTC_254dc.dir/feature_tests.cxx.obj -c C:/Users/aridlin/code/cli/tts/cppversion/build/CMakeFiles/CMakeScratch/TryCompile-lq5uko/feature_tests.cxx
+        [2/2] C:\\Windows\\system32\\cmd.exe /C "cd . && C:\\Users\\aridlin\\Downloads\\clang+llvm-18.1.8-x86_64-pc-windows-msvc\\bin\\clang++.exe -nostartfiles -nostdlib -O0 -g -Xclang -gcodeview -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -Xlinker /subsystem:console -fuse-ld=lld-link CMakeFiles/cmTC_254dc.dir/feature_tests.cxx.obj -o cmTC_254dc.exe -Xlinker /MANIFEST:EMBED -Xlinker /implib:cmTC_254dc.lib -Xlinker /pdb:cmTC_254dc.pdb -Xlinker /version:0.0   -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 -loldnames  && cd ."
         
       exitCode: 0
 ...
