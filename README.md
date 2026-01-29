@@ -30,8 +30,8 @@ The repository ignores `extern/` and `build/` by default.
 
 ## Build (Windows)
 ```
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++
+cmake --build build
 ```
 
 ## Usage
