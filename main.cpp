@@ -163,6 +163,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         }
 
         // UI
+        // UI (build draw list)
+        UiAction action = ui.draw(state);
+
         // Execute UI actions
         if (action == UiAction::Quit)
         {
@@ -188,10 +191,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         {
             std::thread([]{
                 if (!g_state) return;
-                auto wav = audio_playback::make_test_tone_wav(440, 350, 48000);
+                auto wav = audio_playback::make_test_tone_wav(440, 400, 48000);
                 audio_playback::play_wav_to_selected_async(wav, *g_state);
             }).detach();
         }
+
 
 
         const float clear_rgba[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
