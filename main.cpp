@@ -643,7 +643,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
         // ----- your existing recording UI -----
         ImGui::TextDisabled("Recording: %s  |  Toggle: Ctrl+Backspace  |  Stop: Enter  |  Exit: Ctrl+Shift+Tab+E",
                             g_recording.load() ? "YES" : "no");
-        ...
+        //...
     }
 
     ImGui::End();
