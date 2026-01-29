@@ -3,7 +3,11 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <tchar.h>
-
+#include <mmsystem.h>
+#include <sapi.h>
+#include <wrl/client.h>
+#include <vector>
+#pragma comment(lib, "winmm.lib")
 #include <chrono>
 #include <string>
 #include <mutex>
@@ -97,6 +101,100 @@ static void CleanupDeviceD3D() {
     if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release(); g_pd3dDeviceContext = nullptr; }
     if (g_pd3dDevice) { g_pd3dDevice->Release(); g_pd3dDevice = nullptr; }
 }
+using Microsoft::WRL::ComPtr;
+
+// Create a WAV in memory using SAPI, return full WAV bytes (header + PCM).
+static std::vector<uint8_t> SapiSpeakToWavMemory(const std::wstring& text)
+{
+    std::vector<uint8_t> out;
+    if (text.empty()) return out;
+
+    // COM is per-thread. We'll call this from a worker thread later, so init here.
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const bool didInit = SUCCEEDED(hr);
+
+    ComPtr<ISpVoice> voice;
+    hr = CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&voice));
+    if (FAILED(hr) || !voice) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    // Create an IStream backed by HGLOBAL
+    ComPtr<IStream> baseStream;
+    hr = CreateStreamOnHGlobal(NULL, TRUE, &baseStream);
+    if (FAILED(hr) || !baseStream) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    // Wrap it in an ISpStream so SAPI can write WAV data into it
+    ComPtr<ISpStream> spStream;
+    hr = CoCreateInstance(CLSID_SpStream, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&spStream));
+    if (FAILED(hr) || !spStream) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    // Force a simple PCM format (WAV container)
+    WAVEFORMATEX wfx{};
+    wfx.wFormatTag      = WAVE_FORMAT_PCM;
+    wfx.nChannels       = 1;
+    wfx.nSamplesPerSec  = 22050;
+    wfx.wBitsPerSample  = 16;
+    wfx.nBlockAlign     = (wfx.nChannels * wfx.wBitsPerSample) / 8;
+    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
+
+    hr = spStream->SetBaseStream(baseStream.Get(), SPDFID_WaveFormatEx, &wfx);
+    if (FAILED(hr)) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    // Redirect SAPI output into our memory stream
+    hr = voice->SetOutput(spStream.Get(), TRUE);
+    if (FAILED(hr)) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    // Speak synchronously into the stream
+    hr = voice->Speak(text.c_str(), SPF_DEFAULT, nullptr);
+
+    // Restore output back to default
+    voice->SetOutput(nullptr, TRUE);
+
+    if (FAILED(hr)) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    // Extract bytes from the HGLOBAL
+    HGLOBAL hGlobal = NULL;
+    hr = GetHGlobalFromStream(baseStream.Get(), &hGlobal);
+    if (FAILED(hr) || !hGlobal) {
+        if (didInit) CoUninitialize();
+        return out;
+    }
+
+    SIZE_T sz = GlobalSize(hGlobal);
+    void* ptr = GlobalLock(hGlobal);
+    if (ptr && sz > 0) {
+        out.resize(sz);
+        memcpy(out.data(), ptr, sz);
+    }
+    if (ptr) GlobalUnlock(hGlobal);
+
+    if (didInit) CoUninitialize();
+    return out;
+}
+
+static void PlayWavBytes_DefaultDeviceAsync(const std::vector<uint8_t>& wav)
+{
+    if (wav.empty()) return;
+    // PlaySoundA with SND_MEMORY uses the pointer as a WAV memory image.
+    PlaySoundA((LPCSTR)wav.data(), NULL, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
+}
 
 static void StartRecording() {
     if (g_recording.load()) return;
@@ -124,13 +222,25 @@ static void StopRecording() {
 
     ShowWindow(g_hwnd, SW_HIDE);
 
+    // Copy buffer for TTS
+    std::wstring text;
+    {
+        std::lock_guard<std::mutex> lock(g_bufMutex);
+        text = g_buffer;
+        g_buffer.clear();
+    }
+
     // Focus back to previous app/game
     if (g_prevForeground) {
         SetForegroundWindow(g_prevForeground);
         SetActiveWindow(g_prevForeground);
     }
 
-    // (Next step later: run SAPI TTS on g_buffer and play)
+    // TTS in background so UI doesn't freeze
+    std::thread([text]() {
+        auto wav = SapiSpeakToWavMemory(text);
+        PlayWavBytes_DefaultDeviceAsync(wav);
+    }).detach();
 }
 
 static void ToggleRecording() {

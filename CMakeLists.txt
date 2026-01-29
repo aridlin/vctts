@@ -31,6 +31,10 @@ target_compile_definitions(tts_overlay PRIVATE
 
 target_link_libraries(tts_overlay PRIVATE
     d3d11 dxgi d3dcompiler
-    user32 gdi32 imm32 ole32 shell32
+    user32 gdi32 imm32 ole32 oleaut32 shell32
+    uuid
+    winmm
+    sapi
 )
+
 
