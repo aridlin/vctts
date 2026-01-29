@@ -14,11 +14,13 @@
 #include <atomic>
 #include <vector>
 #include <cstdio>
-
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+#include <propvarutil.h>
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
-
+#include <thread>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -50,6 +52,85 @@ static std::atomic<bool> g_alt{false};
 
 static std::chrono::steady_clock::time_point g_lastToggle = std::chrono::steady_clock::now();
 static constexpr double TOGGLE_DEBOUNCE_SEC = 0.35;
+
+
+// uhhhhh
+struct AudioDevice {
+    std::wstring id;
+    std::wstring name;
+};
+
+static std::vector<AudioDevice> g_outDevices;
+static std::vector<std::string> g_outDevicesUtf8;
+static int g_devA = 0;
+static int g_devB = 0;
+
+static std::atomic<bool> g_configDone{false};
+
+static std::string WideToUtf8(const std::wstring& ws) {
+    if (ws.empty()) return {};
+    int len = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), (int)ws.size(), nullptr, 0, nullptr, nullptr);
+    std::string out(len, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), (int)ws.size(), out.data(), len, nullptr, nullptr);
+    return out;
+}
+
+static void RefreshOutputDevices() {
+    g_outDevices.clear();
+    g_outDevicesUtf8.clear();
+
+    IMMDeviceEnumerator* enumerator = nullptr;
+    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                  __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
+    if (FAILED(hr) || !enumerator) return;
+
+    IMMDeviceCollection* collection = nullptr;
+    hr = enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection);
+    if (FAILED(hr) || !collection) { enumerator->Release(); return; }
+
+    UINT count = 0;
+    collection->GetCount(&count);
+
+    for (UINT i = 0; i < count; i++) {
+        IMMDevice* dev = nullptr;
+        if (FAILED(collection->Item(i, &dev)) || !dev) continue;
+
+        LPWSTR devId = nullptr;
+        dev->GetId(&devId);
+
+        IPropertyStore* props = nullptr;
+        dev->OpenPropertyStore(STGM_READ, &props);
+
+        std::wstring name = L"(unknown)";
+        if (props) {
+            PROPVARIANT pv;
+            PropVariantInit(&pv);
+            if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &pv)) && pv.vt == VT_LPWSTR && pv.pwszVal) {
+                name = pv.pwszVal;
+            }
+            PropVariantClear(&pv);
+        }
+
+        AudioDevice ad;
+        ad.id = devId ? devId : L"";
+        ad.name = name;
+
+        g_outDevices.push_back(ad);
+        g_outDevicesUtf8.push_back(WideToUtf8(name));
+
+        if (devId) CoTaskMemFree(devId);
+        if (props) props->Release();
+        dev->Release();
+    }
+
+    collection->Release();
+    enumerator->Release();
+
+    if (g_devA >= (int)g_outDevices.size()) g_devA = 0;
+    if (g_devB >= (int)g_outDevices.size()) g_devB = 0;
+}
+
+
 
 // ----------------------------- Helpers -----------------------------
 static void CreateRenderTarget() {
@@ -220,7 +301,10 @@ static void StopRecording() {
     if (!g_recording.load()) return;
     g_recording.store(false);
 
-    ShowWindow(g_hwnd, SW_HIDE);
+    ShowWindow(g_hwnd, SW_SHOW);
+    UpdateWindow(g_hwnd);
+    SetWindowPos(g_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
 
     // Copy buffer for TTS
     std::wstring text;
@@ -244,6 +328,7 @@ static void StopRecording() {
 }
 
 static void ToggleRecording() {
+    if (!g_configDone.load()) return;
     auto now = std::chrono::steady_clock::now();
     double dt = std::chrono::duration<double>(now - g_lastToggle).count();
     if (dt < TOGGLE_DEBOUNCE_SEC) return;
@@ -442,6 +527,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
 
     ShowWindow(g_hwnd, SW_HIDE);
     UpdateWindow(g_hwnd);
+    HRESULT hrCo = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    (void)hrCo;
+    RefreshOutputDevices();
 
     // ImGui setup
     IMGUI_CHECKVERSION();
@@ -478,44 +566,88 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
 
         // Render only when window is shown (recording)
         if (!IsWindowVisible(g_hwnd)) {
-            Sleep(10);
-            continue;
-        }
+        // After config, we keep it hidden until recording toggles it.
+        Sleep(10);
+        continue;
+    }
+
 
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
         // UI
-        ImGui::SetNextWindowSize(ImVec2(700, 320), ImGuiCond_Always);
-        ImGui::Begin("Voice Typing", nullptr,
-            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+    ImGui::SetNextWindowSize(ImVec2(700, 320), ImGuiCond_Always);
+    ImGui::Begin("Voice Typing", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
-        ImGui::TextDisabled("Recording: %s  |  Toggle: Ctrl+Backspace  |  Stop: Enter  |  Exit: Ctrl+Shift+Tab+E",
-                            g_recording.load() ? "YES" : "no");
+    if (ImGui::Button("Quit")) {
+        g_exitRequested.store(true);
+    }
+    ImGui::Separator();
 
-        std::wstring copy;
-        {
-            std::lock_guard<std::mutex> lock(g_bufMutex);
-            copy = g_buffer;
+    if (!g_configDone.load()) {
+        ImGui::TextUnformatted("Startup config - choose TWO output devices");
+
+        if (ImGui::Button("Refresh devices")) {
+            RefreshOutputDevices();
         }
-        std::string preview = SanitizePreview(copy);
 
-        ImGui::Separator();
-        ImGui::TextUnformatted("Preview:");
-        ImGui::BeginChild("##preview", ImVec2(0, 220), true);
-        ImGui::TextUnformatted(preview.c_str());
-        ImGui::EndChild();
+        if (g_outDevicesUtf8.empty()) {
+            ImGui::TextUnformatted("No output devices found.");
+        } else {
+            // Device A
+            ImGui::TextUnformatted("Device A:");
+            const char* a = g_outDevicesUtf8[g_devA].c_str();
+            if (ImGui::BeginCombo("##devA", a)) {
+                for (int i = 0; i < (int)g_outDevicesUtf8.size(); i++) {
+                    bool sel = (i == g_devA);
+                    if (ImGui::Selectable(g_outDevicesUtf8[i].c_str(), sel)) g_devA = i;
+                    if (sel) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
 
-        if (ImGui::Button("Stop & (later) Speak")) {
-            StopRecording();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Exit")) {
-            g_exitRequested.store(true);
+            // Device B
+            ImGui::TextUnformatted("Device B:");
+            const char* b = g_outDevicesUtf8[g_devB].c_str();
+            if (ImGui::BeginCombo("##devB", b)) {
+                for (int i = 0; i < (int)g_outDevicesUtf8.size(); i++) {
+                    bool sel = (i == g_devB);
+                    if (ImGui::Selectable(g_outDevicesUtf8[i].c_str(), sel)) g_devB = i;
+                    if (sel) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Spacing();
+            if (ImGui::Button("Start")) {
+                g_configDone.store(true);
+                // hide until Ctrl+Backspace
+                ShowWindow(g_hwnd, SW_HIDE);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Test TTS (default output for now)")) {
+                std::thread([]{
+                    auto wav = SapiSpeakToWavMemory(L"Test text to speech.");
+                    PlayWavBytes_DefaultDeviceAsync(wav);
+                }).detach();
+            }
         }
 
         ImGui::End();
+        // IMPORTANT: skip the recording UI entirely while in config
+        ImGui::Render();
+        // (continue your render pipeline as usual)
+    } else {
+        // ----- your existing recording UI -----
+        ImGui::TextDisabled("Recording: %s  |  Toggle: Ctrl+Backspace  |  Stop: Enter  |  Exit: Ctrl+Shift+Tab+E",
+                            g_recording.load() ? "YES" : "no");
+        ...
+    }
+
+    ImGui::End();
+
 
         ImGui::Render();
         const float clear_color_with_alpha[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
@@ -534,6 +666,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
     CleanupDeviceD3D();
     DestroyWindow(g_hwnd);
     UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    CoUninitialize();
     return 0;
 }
 

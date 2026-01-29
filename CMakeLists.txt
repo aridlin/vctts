@@ -35,6 +35,7 @@ target_link_libraries(tts_overlay PRIVATE
     uuid
     winmm
     sapi
+    propsys
 )
 
 
