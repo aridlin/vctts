@@ -7,39 +7,59 @@
 #include "audio_devices.h"
 #include "audio_playback.h"
 #include "tts_sapi.h"
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <objbase.h>
+
 #include <thread>
- 
+#include <utility>
+
 // We need access to the renderer inside the Win32 message handler:
 static D3D11Renderer* g_renderer = nullptr;
+
 // Globals used by C-style callbacks
-static Controller* g_ctrl = nullptr;
+static Controller* g_ctrl  = nullptr;
 static AppState*   g_state = nullptr;
+
+// Fire-and-forget TTS+play, but NEVER capture AppState& into a background thread.
+static void SpeakAndPlayAsync(std::wstring text, int devA, int devB)
+{
+    if (text.empty()) return;
+
+    std::thread([text = std::move(text), devA, devB]() mutable {
+        auto wav = tts_sapi::speak_to_wav_memory(text);
+        audio_playback::play_wav_to_selected_async(wav, devA, devB);
+    }).detach();
+}
 
 static void OnCommittedText(const std::wstring& text)
 {
-    if (!g_state || text.empty()) return;
-    auto wav = tts_sapi::speak_to_wav_memory(text);
-    audio_playback::play_wav_to_selected_async(wav, *g_state);
+    if (!g_state) return;
+
+    // Snapshot device indices NOW (safe). Do not touch AppState inside background threads.
+    const int devA = g_state->devA;
+    const int devB = g_state->devB;
+
+    SpeakAndPlayAsync(text, devA, devB);
 }
 
 static void HookToggle(AppState&) { if (g_ctrl) g_ctrl->toggle_recording(); }
-static void HookStop(AppState&) { if (g_ctrl) g_ctrl->stop_recording(); }
+static void HookStop(AppState&)   { if (g_ctrl) g_ctrl->stop_recording(); }
 static void HookAppend(AppState&, const wchar_t* t, int n) { if (g_ctrl) g_ctrl->on_append_text(t, n); }
 static void HookBackspace(AppState&) { if (g_ctrl) g_ctrl->on_backspace(); }
 static void HookExit(AppState& s) { s.exitRequested.store(true); }
+
 // Hook Win32 messages so ImGui gets input and renderer resizes on WM_SIZE.
 static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT& outResult)
 {
-    // Let ImGui backend process messages first.
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
     {
         outResult = 1;
         return true;
     }
 
-    // Handle resize for D3D11 swapchain.
     if (msg == WM_SIZE && g_renderer && wParam != SIZE_MINIMIZED)
     {
         const UINT w = (UINT)LOWORD(lParam);
@@ -57,13 +77,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     AppState state;
     g_state = &state;
 
-    // COM init (needed for audio device enumeration later; safe even if unused now)
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
     constexpr const wchar_t* kClassName = L"TTS_OVERLAY_IMGUI";
     constexpr const wchar_t* kTitle     = L"TTS Voice Typing";
 
-    // Create Win32 window
     if (!win32_window::create(state, hInstance, kClassName, kTitle, 560, 320, 720, 360))
     {
         MessageBoxW(nullptr, L"Failed to create window.", L"Error", MB_ICONERROR);
@@ -71,7 +89,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         return 1;
     }
 
-    // Init D3D11
     D3D11Renderer renderer;
     if (!renderer.init(state.hwnd))
     {
@@ -83,22 +100,22 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 
     g_renderer = &renderer;
 
-    // Install message handler (ImGui + WM_SIZE -> renderer.resize)
     win32_window::set_msg_handler(MainMsgHandler);
-    
+
     // Fill device list for config UI
     RefreshOutputDevices(state);
 
-    // Init ImGui UI
     ImGuiUi ui;
     ui.init(state.hwnd, renderer);
 
     // Show window at startup (config screen)
     win32_window::show(state);
     win32_window::set_topmost(state, true);
+
     // Controller: show/hide/focus + commit callback
     ControllerCallbacks cbs{};
     cbs.onCommittedText = &OnCommittedText;
+
     Controller ctrl(state, cbs);
     g_ctrl = &ctrl;
 
@@ -116,7 +133,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         state.exitRequested.store(true);
     }
 
-    // Main loop
     MSG msg{};
     while (!state.exitRequested.load())
     {
@@ -128,28 +144,27 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
             if (msg.message == WM_QUIT)
                 state.exitRequested.store(true);
         }
+
         if (state.exitRequested.load())
             break;
-        // Timeout enforcement while recording
+
         ctrl.tick_timeout();
-        // If window is hidden (after Start), keep CPU chill.
+
         if (!IsWindowVisible(state.hwnd))
         {
             Sleep(10);
             continue;
         }
 
-        // UI (build draw list)
         UiAction action = ui.draw(state);
 
-        // Execute UI actions
         if (action == UiAction::Quit)
         {
             state.exitRequested.store(true);
         }
         else if (action == UiAction::StartFromConfig)
         {
-            // After config: hide until hotkey/hook toggles recording later
+            // After config: hide until hotkey toggles recording
             win32_window::hide(state);
         }
         else if (action == UiAction::StopRecording)
@@ -158,24 +173,22 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         }
         else if (action == UiAction::TestTts)
         {
-            std::thread([]{
-                if (!g_state) return;
-                auto wav = tts_sapi::speak_to_wav_memory(L"Test text to speech.");
-                audio_playback::play_wav_to_selected_async(wav, *g_state);
-            }).detach();
+            // Snapshot indices (no AppState* in thread)
+            const int devA = state.devA;
+            const int devB = state.devB;
+            SpeakAndPlayAsync(L"Test text to speech.", devA, devB);
         }
 
-        // Render + present
         const float clear_rgba[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
         renderer.begin_frame(clear_rgba);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
         renderer.end_frame();
     }
 
-    // Cleanup
     ui.shutdown();
     keyboard_hook::uninstall();
     audio_playback::stop_all();
+
     renderer.shutdown();
     win32_window::destroy(state, hInstance, kClassName);
 

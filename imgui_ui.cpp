@@ -1,8 +1,6 @@
 #include "imgui_ui.h"
 #include "audio_devices.h"
 
-
-
 void ImGuiUi::init(HWND hwnd, D3D11Renderer& r)
 {
     IMGUI_CHECKVERSION();
@@ -27,7 +25,6 @@ UiAction ImGuiUi::draw(AppState& s)
     ImGui::NewFrame();
 
     UiAction action = UiAction::None;
-
     if (!s.configDone.load())
         action = draw_config(s);
     else
@@ -43,7 +40,6 @@ UiAction ImGuiUi::draw_config(AppState& s)
     ImGui::Begin("TTS Voice Typing - Config", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
-    // Quit always available
     if (ImGui::Button("Quit")) {
         ImGui::End();
         return UiAction::Quit;
@@ -51,7 +47,7 @@ UiAction ImGuiUi::draw_config(AppState& s)
 
     ImGui::Separator();
     ImGui::TextUnformatted("Startup config");
-    ImGui::TextDisabled("Pick TWO output devices. (Dual-device playback will be wired later.)");
+    ImGui::TextDisabled("Pick TWO output devices (miniaudio/WASAPI).");
 
     if (ImGui::Button("Refresh devices")) {
         RefreshOutputDevices(s);
@@ -66,13 +62,9 @@ UiAction ImGuiUi::draw_config(AppState& s)
         return UiAction::None;
     }
 
-    // Clamp indices (in case list changed)
-    if (s.devA < 0) s.devA = 0;
-    if (s.devB < 0) s.devB = 0;
-    if (s.devA >= (int)s.outDevicesUtf8.size()) s.devA = 0;
-    if (s.devB >= (int)s.outDevicesUtf8.size()) s.devB = 0;
+    if (s.devA < 0 || s.devA >= (int)s.outDevicesUtf8.size()) s.devA = 0;
+    if (s.devB < 0 || s.devB >= (int)s.outDevicesUtf8.size()) s.devB = 0;
 
-    // Device A combo
     ImGui::TextUnformatted("Device A:");
     const char* aLabel = s.outDevicesUtf8[s.devA].c_str();
     if (ImGui::BeginCombo("##devA", aLabel)) {
@@ -85,7 +77,6 @@ UiAction ImGuiUi::draw_config(AppState& s)
         ImGui::EndCombo();
     }
 
-    // Device B combo
     ImGui::TextUnformatted("Device B:");
     const char* bLabel = s.outDevicesUtf8[s.devB].c_str();
     if (ImGui::BeginCombo("##devB", bLabel)) {
@@ -100,7 +91,7 @@ UiAction ImGuiUi::draw_config(AppState& s)
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::TextDisabled("Hotkeys will work after you press Start.");
+    ImGui::TextDisabled("Hotkeys work after you press Start.");
 
     if (ImGui::Button("Start")) {
         s.configDone.store(true);
@@ -113,7 +104,6 @@ UiAction ImGuiUi::draw_config(AppState& s)
         ImGui::End();
         return UiAction::TestTts;
     }
-
 
     ImGui::End();
     return UiAction::None;
@@ -148,8 +138,8 @@ UiAction ImGuiUi::draw_recording(AppState& s)
         ImGui::End();
         return UiAction::StopRecording;
     }
-UiAction ImGuiUi::draw_recording(AppState& s)
- 
-     ImGui::End();
-     return UiAction::None;
- }
+
+    ImGui::End();
+    return UiAction::None;
+}
+

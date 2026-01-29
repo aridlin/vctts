@@ -1,14 +1,17 @@
 #include "audio_playback.h"
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
+
 #include <atomic>
-#include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 #include <algorithm>
 #include <cstring>
+#include <string>
+#include <cstdint>
 
-// IMPORTANT: exactly ONE translation unit must define MINIAUDIO_IMPLEMENTATION.
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
@@ -16,20 +19,11 @@
 // Starting new playback increments gen; old threads stop when they notice a mismatch.
 static std::atomic<std::uint64_t> g_playGen{0};
 
-static std::wstring Utf8ToWide(const std::string& s)
-{
-    if (s.empty()) return {};
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
-    std::wstring out(wlen, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), out.data(), wlen);
-    return out;
-}
-
 namespace audio_playback
 {
     struct DecodedPcm
     {
-        std::vector<float> pcm; // interleaved f32
+        std::vector<float> pcm;   // interleaved f32
         ma_uint32 channels = 2;
         ma_uint32 sampleRate = 48000;
         ma_uint64 totalFrames = 0;
@@ -43,21 +37,21 @@ namespace audio_playback
         std::uint64_t myGen = 0;
     };
 
-    static void data_callback(ma_device* pDevice, void* pOutput, const void* /*pInput*/, ma_uint32 frameCount)
+    static void data_callback(ma_device* pDevice, void* pOutput, const void*, ma_uint32 frameCount)
     {
         Player* p = (Player*)pDevice->pUserData;
         float* out = (float*)pOutput;
 
-        // If canceled, output silence and mark done.
         if (!p || !p->audio || p->myGen != g_playGen.load())
         {
-            std::memset(out, 0, frameCount * sizeof(float) * (pDevice->playback.channels));
+            std::memset(out, 0, (size_t)frameCount * sizeof(float) * pDevice->playback.channels);
             if (p) p->done.store(true);
             return;
         }
 
         const DecodedPcm& a = *p->audio;
         const ma_uint32 ch = a.channels;
+
         const ma_uint64 remaining = (p->cursorFrames < a.totalFrames) ? (a.totalFrames - p->cursorFrames) : 0;
         const ma_uint32 toCopy = (ma_uint32)std::min<ma_uint64>(remaining, frameCount);
 
@@ -68,7 +62,6 @@ namespace audio_playback
             p->cursorFrames += toCopy;
         }
 
-        // Zero-pad remainder
         if (toCopy < frameCount)
         {
             std::memset(out + (size_t)toCopy * ch, 0, (size_t)(frameCount - toCopy) * ch * sizeof(float));
@@ -106,8 +99,8 @@ namespace audio_playback
             std::string nameUtf8 = nm ? nm : "(unknown)";
 
             AudioDevice ad;
-            ad.id = L""; // we don't store binary miniaudio IDs in AppState; index is enough
-            ad.name = Utf8ToWide(nameUtf8);
+            ad.id = L""; // selection is by index, ID not needed in AppState
+            ad.name = AppState::utf8ToWide(nameUtf8);
 
             s.outDevices.push_back(std::move(ad));
             s.outDevicesUtf8.push_back(std::move(nameUtf8));
@@ -117,7 +110,8 @@ namespace audio_playback
 
         if (s.outDevicesUtf8.empty())
         {
-            s.devA = 0; s.devB = 0;
+            s.devA = 0;
+            s.devB = 0;
             return false;
         }
 
@@ -129,8 +123,7 @@ namespace audio_playback
 
     static bool decode_wav_to_pcm_f32(const std::vector<std::uint8_t>& wav, DecodedPcm& out)
     {
-        // Target format for playback (keeps devices consistent).
-        // WASAPI shared mode usually likes 48k, and stereo is universally safe.
+        // Always decode to a stable playback format.
         const ma_uint32 kRate = 48000;
         const ma_uint32 kCh   = 2;
 
@@ -143,10 +136,8 @@ namespace audio_playback
         out.channels = kCh;
         out.sampleRate = kRate;
 
-        // Stream decode into vector
         constexpr ma_uint32 CHUNK_FRAMES = 4096;
-        std::vector<float> chunk;
-        chunk.resize((size_t)CHUNK_FRAMES * kCh);
+        std::vector<float> chunk((size_t)CHUNK_FRAMES * kCh);
 
         out.pcm.clear();
         out.pcm.reserve((size_t)CHUNK_FRAMES * kCh * 8);
@@ -155,11 +146,13 @@ namespace audio_playback
         {
             ma_uint64 framesRead = 0;
             ma_result rr = ma_decoder_read_pcm_frames(&dec, chunk.data(), CHUNK_FRAMES, &framesRead);
+
             if (rr != MA_SUCCESS && rr != MA_AT_END)
             {
                 ma_decoder_uninit(&dec);
                 return false;
             }
+
             if (framesRead == 0) break;
 
             const size_t samples = (size_t)framesRead * kCh;
@@ -179,22 +172,18 @@ namespace audio_playback
         g_playGen.fetch_add(1);
     }
 
-    void play_wav_to_selected_async(const std::vector<std::uint8_t>& wav, const AppState& s)
+    void play_wav_to_selected_async(const std::vector<std::uint8_t>& wav, int devA, int devB)
     {
         if (wav.empty()) return;
 
-        // Snapshot selection indices and current list (indices are what matters).
-        const int idxA = s.devA;
-        const int idxB = s.devB;
+        const int idxA = devA;
+        const int idxB = devB;
 
-        // Cancel any existing playback and start a new generation.
         const std::uint64_t myGen = g_playGen.fetch_add(1) + 1;
 
-        // Copy WAV bytes (caller might free immediately).
         std::vector<std::uint8_t> wavCopy = wav;
 
         std::thread([wavCopy = std::move(wavCopy), idxA, idxB, myGen]() mutable {
-            // Enumerate devices from miniaudio (must match the same backend as selection).
             ma_context ctx;
             if (ma_context_init(nullptr, 0, nullptr, &ctx) != MA_SUCCESS)
                 return;
@@ -216,10 +205,6 @@ namespace audio_playback
             if (a < 0 || a >= (int)playbackCount) a = 0;
             if (b < 0 || b >= (int)playbackCount) b = 0;
 
-            // Copy device IDs locally (important: pointer must stay valid for init)
-            ma_device_id devIdA = playbackInfos[a].id;
-            ma_device_id devIdB = playbackInfos[b].id;
-
             // Decode WAV -> PCM float
             DecodedPcm audio;
             if (!decode_wav_to_pcm_f32(wavCopy, audio))
@@ -228,7 +213,12 @@ namespace audio_playback
                 return;
             }
 
-            // Two players reading the same decoded buffer
+            // If both outputs are the same device, just play once.
+            const bool single = (a == b);
+
+            ma_device_id devIdA = playbackInfos[a].id;
+            ma_device_id devIdB = playbackInfos[b].id;
+
             Player pA; pA.audio = &audio; pA.cursorFrames = 0; pA.done.store(false); pA.myGen = myGen;
             Player pB; pB.audio = &audio; pB.cursorFrames = 0; pB.done.store(false); pB.myGen = myGen;
 
@@ -239,41 +229,51 @@ namespace audio_playback
             cfgA.sampleRate         = audio.sampleRate;
             cfgA.dataCallback       = data_callback;
             cfgA.pUserData          = &pA;
+            cfgA.performanceProfile = ma_performance_profile_low_latency;
 
-            ma_device_config cfgB = ma_device_config_init(ma_device_type_playback);
-            cfgB.playback.pDeviceID = &devIdB;
-            cfgB.playback.format    = ma_format_f32;
-            cfgB.playback.channels  = audio.channels;
-            cfgB.sampleRate         = audio.sampleRate;
-            cfgB.dataCallback       = data_callback;
-            cfgB.pUserData          = &pB;
-
-            ma_device devA{};
-            ma_device devB{};
-
-            if (ma_device_init(&ctx, &cfgA, &devA) != MA_SUCCESS)
+            ma_device devAInst{};
+            if (ma_device_init(&ctx, &cfgA, &devAInst) != MA_SUCCESS)
             {
                 ma_context_uninit(&ctx);
                 return;
             }
-            if (ma_device_init(&ctx, &cfgB, &devB) != MA_SUCCESS)
+
+            ma_device devBInst{};
+            bool devBStarted = false;
+
+            if (!single)
             {
-                ma_device_uninit(&devA);
-                ma_context_uninit(&ctx);
-                return;
+                ma_device_config cfgB = ma_device_config_init(ma_device_type_playback);
+                cfgB.playback.pDeviceID = &devIdB;
+                cfgB.playback.format    = ma_format_f32;
+                cfgB.playback.channels  = audio.channels;
+                cfgB.sampleRate         = audio.sampleRate;
+                cfgB.dataCallback       = data_callback;
+                cfgB.pUserData          = &pB;
+                cfgB.performanceProfile = ma_performance_profile_low_latency;
+
+                if (ma_device_init(&ctx, &cfgB, &devBInst) == MA_SUCCESS)
+                    devBStarted = true;
+                else
+                    pB.done.store(true); // treat as done if second device fails
+            }
+            else
+            {
+                pB.done.store(true);
             }
 
-            // Start both (as close together as possible)
-            ma_device_start(&devA);
-            ma_device_start(&devB);
+            // Start A then B immediately after.
+            ma_device_start(&devAInst);
+            if (devBStarted)
+                ma_device_start(&devBInst);
 
-            // Wait until both done OR canceled
             while (g_playGen.load() == myGen && (!pA.done.load() || !pB.done.load()))
                 Sleep(5);
 
-            // Stop/uninit
-            ma_device_uninit(&devB);
-            ma_device_uninit(&devA);
+            if (devBStarted)
+                ma_device_uninit(&devBInst);
+
+            ma_device_uninit(&devAInst);
             ma_context_uninit(&ctx);
         }).detach();
     }
