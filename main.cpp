@@ -13,7 +13,6 @@
 // (Extra safety) If for any reason the backend header still didn’t declare it,
 // this guarantees the symbol exists for the compiler.
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 #include "app_state.h"
 #include "win32_window.h"
 #include "d3d11_renderer.h"
@@ -164,8 +163,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         }
 
         // UI
-        UiAction action = ui.draw(state);
-
+        // Execute UI actions
         if (action == UiAction::Quit)
         {
             state.exitRequested.store(true);
@@ -186,6 +184,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
                 audio_playback::play_wav_to_selected_async(wav, *g_state);
             }).detach();
         }
+        else if (action == UiAction::TestTone)
+        {
+            std::thread([]{
+                if (!g_state) return;
+                auto wav = audio_playback::make_test_tone_wav(440, 350, 48000);
+                audio_playback::play_wav_to_selected_async(wav, *g_state);
+            }).detach();
+        }
+
 
         const float clear_rgba[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
         renderer.begin_frame(clear_rgba);
