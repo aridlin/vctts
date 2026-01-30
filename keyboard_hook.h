@@ -16,4 +16,8 @@ namespace keyboard_hook
     bool install(AppState& s, const HookCallbacks& cb);
     void uninstall();
     bool is_installed();
+
+    // Call this each frame to prevent "stuck Ctrl/Shift/Alt" in AppState.
+    void poll_modifiers(AppState& s);
 }
+

@@ -1,4 +1,5 @@
 #include "win32_window.h"
+#include <windows.h>
 
 namespace {
     Win32MsgHandler g_msgHandler = nullptr;
@@ -8,12 +9,51 @@ namespace win32_window
 {
     void set_msg_handler(Win32MsgHandler handler) { g_msgHandler = handler; }
 
+    static AppState* get_state(HWND hWnd)
+    {
+        return reinterpret_cast<AppState*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
+    }
+
     LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         if (g_msgHandler) {
             LRESULT out = 0;
             if (g_msgHandler(hWnd, msg, wParam, lParam, out))
                 return out;
+        }
+
+        AppState* s = get_state(hWnd);
+
+        // Capture typed characters the CORRECT way (layout/dead keys handled by Windows)
+        if (s && s->recording.load())
+        {
+            switch (msg)
+            {
+            case WM_KEYDOWN:
+                if (wParam == VK_BACK) {
+                    s->backspace();
+                    return 0;
+                }
+                break;
+
+            case WM_CHAR:
+            {
+                wchar_t ch = (wchar_t)wParam;
+
+                // Ignore control chars except newline-ish if you want.
+                if (ch == 0) return 0;
+                if (ch == L'\b') { s->backspace(); return 0; }
+                if (ch == L'\r' || ch == L'\n') return 0; // Enter is handled by hook -> stop
+
+                // Accept normal printable chars + space
+                if (ch >= 32) {
+                    s->appendSpan(&ch, 1);
+                }
+                return 0;
+            }
+            default:
+                break;
+            }
         }
 
         switch (msg)
@@ -66,6 +106,10 @@ namespace win32_window
         }
 
         state.hwnd = hwnd;
+
+        // Store AppState* for WM_CHAR capture
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)&state);
+
         return true;
     }
 
@@ -115,3 +159,4 @@ namespace win32_window
         state.prevForeground = nullptr;
     }
 }
+

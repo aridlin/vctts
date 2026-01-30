@@ -154,10 +154,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
             if (msg.message == WM_QUIT)
                 state.exitRequested.store(true);
         }
+        keyboard_hook::poll_modifiers(state);
         if (state.exitRequested.load())
             break;
 
         ctrl.tick_timeout();
+
 
         if (!IsWindowVisible(state.hwnd))
         {

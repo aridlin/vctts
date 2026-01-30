@@ -1,7 +1,6 @@
 #include "keyboard_hook.h"
 #include <atomic>
 #include <chrono>
-#include <windows.h>
 
 static HHOOK g_hook = nullptr;
 static AppState* g_state = nullptr;
@@ -14,19 +13,11 @@ static std::atomic<bool> g_alt{false};
 static std::chrono::steady_clock::time_point g_lastToggle = std::chrono::steady_clock::now();
 static double g_toggleDebounceSec = 0.35;
 
-#define HOOK_DEBUG(msg) OutputDebugStringW(L"[HOOK] " msg L"\n")
-
-static void update_modifier(DWORD vk, bool down)
+static void push_modifiers_to_state(AppState& s)
 {
-    if (vk == VK_LSHIFT || vk == VK_RSHIFT || vk == VK_SHIFT) g_shift.store(down);
-    if (vk == VK_LCONTROL || vk == VK_RCONTROL || vk == VK_CONTROL) g_ctrl.store(down);
-    if (vk == VK_LMENU || vk == VK_RMENU || vk == VK_MENU) g_alt.store(down);
-
-    if (g_state) {
-        g_state->shift.store(g_shift.load());
-        g_state->ctrl.store(g_ctrl.load());
-        g_state->alt.store(g_alt.load());
-    }
+    s.shift.store(g_shift.load());
+    s.ctrl.store(g_ctrl.load());
+    s.alt.store(g_alt.load());
 }
 
 static void sync_modifiers_from_async()
@@ -35,15 +26,11 @@ static void sync_modifiers_from_async()
     const bool ctrlDown  = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
     const bool altDown   = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
 
-    if (g_shift.load() != shiftDown) g_shift.store(shiftDown);
-    if (g_ctrl.load() != ctrlDown)   g_ctrl.store(ctrlDown);
-    if (g_alt.load() != altDown)     g_alt.store(altDown);
+    g_shift.store(shiftDown);
+    g_ctrl.store(ctrlDown);
+    g_alt.store(altDown);
 
-    if (g_state) {
-        g_state->shift.store(g_shift.load());
-        g_state->ctrl.store(g_ctrl.load());
-        g_state->alt.store(g_alt.load());
-    }
+    if (g_state) push_modifiers_to_state(*g_state);
 }
 
 static bool debounce_ok()
@@ -55,45 +42,6 @@ static bool debounce_ok()
     return true;
 }
 
-static bool is_valid_utf16_char(wchar_t c)
-{
-    // Reject surrogate halves (invalid scalar value by itself)
-    if (c >= 0xD800 && c <= 0xDFFF) return false;
-
-    // Reject control chars except space/newline/tab (optional)
-    if (c < 0x20 && c != L' ' && c != L'\n' && c != L'\t') return false;
-
-    return true;
-}
-
-static void append_vk_as_text(DWORD vkCode, DWORD scanCode)
-{
-    if (!g_state || !g_cb.onAppendText) return;
-
-    HKL layout = GetKeyboardLayout(0);
-
-    BYTE ks[256]{};
-    if (g_shift.load()) ks[VK_SHIFT] = 0x80;
-    if (g_ctrl.load())  ks[VK_CONTROL] = 0x80;
-    if (g_alt.load())   ks[VK_MENU] = 0x80;
-    if ((GetKeyState(VK_CAPITAL) & 1) != 0) ks[VK_CAPITAL] = 0x01;
-
-    wchar_t out[8]{};
-    int rc = ToUnicodeEx((UINT)vkCode, (UINT)scanCode, ks, out, 8, 0, layout);
-
-    if (rc <= 0) {
-        // rc == -1: dead key; rc == 0: no translation
-        return;
-    }
-
-    // Append only valid characters (avoid garbage in buffer)
-    for (int i = 0; i < rc; ++i)
-    {
-        if (!is_valid_utf16_char(out[i])) continue;
-        g_cb.onAppendText(*g_state, &out[i], 1);
-    }
-}
-
 static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode != HC_ACTION || !g_state)
@@ -101,23 +49,11 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
 
     const KBDLLHOOKSTRUCT* k = reinterpret_cast<const KBDLLHOOKSTRUCT*>(lParam);
     const bool down = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
-    const bool up   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
 
+    // Keep modifiers correct regardless of what we swallow.
     sync_modifiers_from_async();
 
-    // Modifiers
-    if (k->vkCode == VK_SHIFT || k->vkCode == VK_LSHIFT || k->vkCode == VK_RSHIFT ||
-        k->vkCode == VK_CONTROL || k->vkCode == VK_LCONTROL || k->vkCode == VK_RCONTROL ||
-        k->vkCode == VK_MENU || k->vkCode == VK_LMENU || k->vkCode == VK_RMENU)
-    {
-        if (down) update_modifier((DWORD)k->vkCode, true);
-        if (up)   update_modifier((DWORD)k->vkCode, false);
-
-        if (g_state->recording.load()) return 1;
-        return CallNextHookEx(g_hook, nCode, wParam, lParam);
-    }
-
-    // Exit hotkey: Ctrl+Shift+Tab+E
+    // Exit hotkey: Ctrl+Shift+Tab+E (swallow)
     if (down && k->vkCode == 'E') {
         if (g_ctrl.load() && g_shift.load() && (GetAsyncKeyState(VK_TAB) & 0x8000)) {
             if (g_cb.onExit) g_cb.onExit(*g_state);
@@ -125,7 +61,7 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
         }
     }
 
-    // Toggle: Ctrl+Backspace
+    // Toggle: Ctrl+Backspace (swallow so target app/game doesn't backspace)
     if (down && k->vkCode == VK_BACK) {
         if (g_ctrl.load()) {
             if (g_state->configDone.load() && debounce_ok()) {
@@ -135,27 +71,17 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
         }
     }
 
-    // Recording mode: swallow + build buffer
-    if (g_state->recording.load()) {
-        if (down) {
-            if (k->vkCode == VK_RETURN) {
-                if (g_cb.onStopRecording) g_cb.onStopRecording(*g_state);
-                return 1;
-            }
-            if (k->vkCode == VK_BACK) {
-                if (g_cb.onBackspace) g_cb.onBackspace(*g_state);
-                return 1;
-            }
-            if (k->vkCode == VK_SPACE) {
-                static const wchar_t sp = L' ';
-                if (g_cb.onAppendText) g_cb.onAppendText(*g_state, &sp, 1);
-                return 1;
-            }
-
-            append_vk_as_text((DWORD)k->vkCode, (DWORD)k->scanCode);
+    // While recording: DO NOT swallow normal typing keys.
+    // We want our overlay window to receive WM_CHAR / WM_KEYDOWN normally.
+    if (g_state->recording.load())
+    {
+        // Optional: still intercept Enter to stop recording even if the overlay loses focus.
+        if (down && k->vkCode == VK_RETURN) {
+            if (g_cb.onStopRecording) g_cb.onStopRecording(*g_state);
             return 1;
         }
-        return 1;
+
+        return CallNextHookEx(g_hook, nCode, wParam, lParam);
     }
 
     return CallNextHookEx(g_hook, nCode, wParam, lParam);
@@ -168,7 +94,14 @@ namespace keyboard_hook
         g_state = &s;
         g_cb = cb;
         g_toggleDebounceSec = s.toggleDebounceSec;
-        g_hook = SetWindowsHookExW(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandleW(nullptr), 0);
+
+        g_hook = SetWindowsHookExW(
+            WH_KEYBOARD_LL,
+            LowLevelKeyboardProc,
+            GetModuleHandleW(nullptr),
+            0
+        );
+
         return g_hook != nullptr;
     }
 
@@ -183,5 +116,18 @@ namespace keyboard_hook
     }
 
     bool is_installed() { return g_hook != nullptr; }
+
+    void poll_modifiers(AppState& s)
+    {
+        const bool shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+        const bool ctrlDown  = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+        const bool altDown   = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+
+        g_shift.store(shiftDown);
+        g_ctrl.store(ctrlDown);
+        g_alt.store(altDown);
+
+        push_modifiers_to_state(s);
+    }
 }
 
