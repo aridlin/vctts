@@ -29,20 +29,24 @@ struct AppState {
     std::chrono::steady_clock::time_point lastInput = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point lastToggle = std::chrono::steady_clock::now();
 
-    // ---- Modifiers (hook-updated) ----
+    // ---- Modifiers ----
     std::atomic<bool> shift{false};
     std::atomic<bool> ctrl{false};
     std::atomic<bool> alt{false};
 
-    // ---- Text buffer (Unicode) ----
+    // ---- Text buffer ----
     mutable std::mutex bufMutex;
     std::wstring buffer;
 
-    // ---- Audio device config (GUI-selected) ----
+    // ---- Audio devices ----
     std::vector<AudioDevice> outDevices;
     std::vector<std::string> outDevicesUtf8;
     int devA = 0;
     int devB = 0;
+
+    // ---- SAPI voices ----
+    std::vector<std::wstring> sapiVoices;
+    int sapiVoiceIndex = 0;
 
     void clearBuffer() {
         std::lock_guard<std::mutex> lock(bufMutex);
@@ -76,35 +80,11 @@ struct AppState {
 
     static std::string sanitizePreview(const std::wstring& ws) {
         std::string out;
-        out.reserve(ws.size());
-        auto emit = [&](const char* s) { out += s; };
-
         for (wchar_t c : ws) {
-            if (c >= 32 && c < 127) { out.push_back((char)c); continue; }
-            switch (c) {
-                case L'ą': emit("%a"); break;
-                case L'ć': emit("%c"); break;
-                case L'ę': emit("%e"); break;
-                case L'ł': emit("%l"); break;
-                case L'ń': emit("%n"); break;
-                case L'ó': emit("%o"); break;
-                case L'ś': emit("%s"); break;
-                case L'ż': emit("%z"); break;
-                case L'ź': emit("%x"); break;
-
-                case L'Ą': emit("%A"); break;
-                case L'Ć': emit("%C"); break;
-                case L'Ę': emit("%E"); break;
-                case L'Ł': emit("%L"); break;
-                case L'Ń': emit("%N"); break;
-                case L'Ó': emit("%O"); break;
-                case L'Ś': emit("%S"); break;
-                case L'Ż': emit("%Z"); break;
-                case L'Ź': emit("%X"); break;
-
-                default: out.push_back('?'); break;
-            }
+            if (c >= 32 && c < 127) out.push_back((char)c);
+            else out.push_back('?');
         }
         return out;
     }
 };
+

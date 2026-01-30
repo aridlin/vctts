@@ -1,4 +1,5 @@
 #include "imgui_ui.h"
+#include "tts_winrt.h"
 #include "audio_devices.h"
 
 void ImGuiUi::init(HWND hwnd, D3D11Renderer& r)
@@ -99,6 +100,53 @@ UiAction ImGuiUi::draw_config(AppState& s)
     }
     ImGui::SameLine();
     ImGui::TextDisabled("Uses an online keyless TTS if enabled.");
+    if (s.sapiVoices.empty())
+        s.sapiVoices = tts_winrt::list_voices();
+
+
+    if (!s.sapiVoices.empty())
+    {
+        ImGui::Separator();
+        ImGui::TextUnformatted("SAPI Voice:");
+
+        static std::string voiceLabel; // persists across frames
+
+        if (s.sapiVoiceIndex >= 0 &&
+            s.sapiVoiceIndex < (int)s.sapiVoices.size())
+        {
+            voiceLabel.assign(
+                s.sapiVoices[s.sapiVoiceIndex].begin(),
+                s.sapiVoices[s.sapiVoiceIndex].end()
+            );
+        }
+        else
+        {
+            voiceLabel = "(invalid)";
+        }
+
+        if (ImGui::BeginCombo("##voice", voiceLabel.c_str()))
+        {
+            for (int i = 0; i < (int)s.sapiVoices.size(); i++)
+            {
+                bool sel = (i == s.sapiVoiceIndex);
+
+                std::string name(
+                    s.sapiVoices[i].begin(),
+                    s.sapiVoices[i].end()
+                );
+
+                if (ImGui::Selectable(name.c_str(), sel))
+                {
+                    s.sapiVoiceIndex = i;
+                    tts_winrt::set_voice_index(i);
+                }
+
+                if (sel)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+    }
 
     if (ImGui::Button("Start")) {
         s.configDone.store(true);

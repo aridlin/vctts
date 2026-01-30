@@ -6,9 +6,8 @@
 #include "controller.h"
 #include "audio_devices.h"
 #include "audio_playback.h"
-#include "tts_sapi.h"
 #include "tts_keyless.h"
-
+#include "tts_winrt.h"
 #include <windows.h>
 #include <objbase.h>
 #include <thread>
@@ -23,17 +22,26 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 static D3D11Renderer* g_renderer = nullptr;
 static Controller* g_ctrl = nullptr;
 static AppState*   g_state = nullptr;
-
+static std::wstring SanitizeForSapi(const std::wstring& in)
+{
+    std::wstring out;
+    for (wchar_t c : in) {
+        if (c < 0x20 && c != L' ' && c != L'\n') continue;
+        if (c >= 0xD800 && c <= 0xDFFF) continue;
+        out.push_back(c);
+    }
+    return out;
+}
 static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, bool preferKeyless)
 {
     if (preferKeyless)
     {
         auto audio = tts_keyless::speak_to_audio_memory(text);
         if (!audio.empty()) return audio;
-        return tts_sapi::speak_to_wav_memory(text);
+        return tts_winrt::speak_wav(text);
     }
 
-    auto audio = tts_sapi::speak_to_wav_memory(text);
+    auto audio = tts_winrt::speak_wav(text);
     if (!audio.empty()) return audio;
     return tts_keyless::speak_to_audio_memory(text);
 }
@@ -45,7 +53,7 @@ static void OnCommittedText(const std::wstring& text)
     std::wstring copy = text;
     const bool preferKeyless = g_state->useKeylessBackup.load();
     std::thread([copy, preferKeyless]() {
-        auto wav = SpeakWithFallback(copy, preferKeyless);
+        auto wav = SpeakWithFallback(SanitizeForSapi(copy), preferKeyless);
         if (wav.empty()) {
             MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
             return;
@@ -79,6 +87,7 @@ static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LR
 
     return false;
 }
+
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 {
@@ -178,14 +187,43 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         {
             std::thread([]{
                 if (!g_state) return;
-                auto wav = SpeakWithFallback(L"Test text to speech.", g_state->useKeylessBackup.load());
-                if (wav.empty()) {
-                    MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
+
+                const bool preferKeyless = g_state->useKeylessBackup.load();
+                auto audio = SpeakWithFallback(L"Test text to speech.", preferKeyless);
+
+                wchar_t buf[256];
+                swprintf_s(buf, L"TTS bytes: %llu (preferKeyless=%s)",
+                           (unsigned long long)audio.size(),
+                           preferKeyless ? L"true" : L"false");
+                OutputDebugStringW(L"[TTS] ");
+                OutputDebugStringW(buf);
+                OutputDebugStringW(L"\n");
+
+                // Quick signature check for common failure modes
+                if (!audio.empty())
+                {
+                    // MP3 often starts with "ID3" or 0xFF 0xFB (frame sync)
+                    const bool looksMp3 =
+                        (audio.size() >= 3 && audio[0] == 'I' && audio[1] == 'D' && audio[2] == '3') ||
+                        (audio.size() >= 2 && audio[0] == 0xFF && (audio[1] & 0xE0) == 0xE0);
+
+                    // WAV starts with "RIFF"
+                    const bool looksWav =
+                        (audio.size() >= 4 && audio[0] == 'R' && audio[1] == 'I' && audio[2] == 'F' && audio[3] == 'F');
+
+                    if (!looksWav && !looksMp3)
+                        OutputDebugStringW(L"[TTS] Warning: audio does not look like WAV or MP3 (maybe HTML error response)\n");
+                }
+
+                if (audio.empty()) {
+                    MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer. Check DebugView output.", L"TTS Error", MB_ICONERROR);
                     return;
                 }
-                audio_playback::play_wav_to_selected_async(wav, *g_state);
+
+                audio_playback::play_wav_to_selected_async(audio, *g_state);
             }).detach();
         }
+
 
         const float clear_rgba[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
         renderer.begin_frame(clear_rgba);

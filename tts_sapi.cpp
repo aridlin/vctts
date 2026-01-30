@@ -2,29 +2,25 @@
 
 #include <windows.h>
 #include <sapi.h>
+#include <sphelper.h>
 #include <wrl/client.h>
 #include <objbase.h>
 #include <mmreg.h>
 
 #include <vector>
 #include <cstdint>
+#include <cstring>
 
 using Microsoft::WRL::ComPtr;
 
+#define TTS_DEBUG(x) OutputDebugStringW(L"[TTS] " x L"\n")
+
+namespace {
+    int g_voiceIndex = 0;
+}
+
 namespace tts_sapi
 {
-    static void fill_wfx_48k_stereo_16(WAVEFORMATEX& wfx)
-    {
-        wfx = {};
-        wfx.wFormatTag = WAVE_FORMAT_PCM;
-        wfx.nChannels = 2;
-        wfx.nSamplesPerSec = 48000;
-        wfx.wBitsPerSample = 16;
-        wfx.nBlockAlign = (wfx.nChannels * wfx.wBitsPerSample) / 8;
-        wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
-        wfx.cbSize = 0;
-    }
-
     static void fill_wfx_16k_mono_16(WAVEFORMATEX& wfx)
     {
         wfx = {};
@@ -32,77 +28,126 @@ namespace tts_sapi
         wfx.nChannels = 1;
         wfx.nSamplesPerSec = 16000;
         wfx.wBitsPerSample = 16;
-        wfx.nBlockAlign = (wfx.nChannels * wfx.wBitsPerSample) / 8;
-        wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
+        wfx.nBlockAlign = 2;
+        wfx.nAvgBytesPerSec = 32000;
         wfx.cbSize = 0;
     }
 
-    std::vector<std::uint8_t> speak_to_wav_memory(const std::wstring& text, int rate, int volume)
+    std::vector<std::wstring> list_voices()
+    {
+        std::vector<std::wstring> out;
+
+        ComPtr<IEnumSpObjectTokens> e;
+        if (FAILED(SpEnumTokens(SPCAT_VOICES, nullptr, nullptr, &e)))
+            return out;
+
+        ULONG count = 0;
+        e->GetCount(&count);
+
+        for (ULONG i = 0; i < count; ++i)
+        {
+            ComPtr<ISpObjectToken> tok;
+            if (FAILED(e->Item(i, &tok))) continue;
+
+            CSpDynamicString desc;
+            if (SUCCEEDED(SpGetDescription(tok.Get(), &desc)) && desc.m_psz)
+                out.emplace_back(desc.m_psz);
+        }
+
+        return out;
+    }
+
+    void set_voice_index(int index)
+    {
+        g_voiceIndex = index;
+    }
+
+    std::vector<std::uint8_t> speak_to_wav_memory(
+        const std::wstring& text,
+        int rate,
+        int volume)
     {
         std::vector<std::uint8_t> out;
         if (text.empty()) return out;
 
-        if (volume < 0) volume = 0;
-        if (volume > 100) volume = 100;
-
         HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-        bool didInit = SUCCEEDED(hr);
-        if (hr == RPC_E_CHANGED_MODE) didInit = false;
-        if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) return out;
+        const bool didInit = SUCCEEDED(hr);
+        if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
+            return out;
 
         ComPtr<ISpVoice> voice;
-        hr = CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&voice));
-        if (FAILED(hr) || !voice) { if (didInit) CoUninitialize(); return out; }
+        if (FAILED(CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_ALL,
+                                    IID_PPV_ARGS(&voice))))
+            goto cleanup;
 
-        voice->SetRate((long)rate);
+        // Select voice by index
+        {
+            ComPtr<IEnumSpObjectTokens> e;
+            if (SUCCEEDED(SpEnumTokens(SPCAT_VOICES, nullptr, nullptr, &e)))
+            {
+                ULONG count = 0;
+                e->GetCount(&count);
+                if (count > 0)
+                {
+                    int idx = g_voiceIndex;
+                    if (idx < 0) idx = 0;
+                    if (idx >= (int)count) idx = (int)count - 1;
+
+                    ComPtr<ISpObjectToken> tok;
+                    if (SUCCEEDED(e->Item((ULONG)idx, &tok)))
+                        voice->SetVoice(tok.Get());
+                }
+            }
+        }
+
+        voice->SetRate(rate);
         voice->SetVolume((USHORT)volume);
 
-        ComPtr<IStream> baseStream;
-        hr = CreateStreamOnHGlobal(NULL, TRUE, &baseStream);
-        if (FAILED(hr) || !baseStream) { if (didInit) CoUninitialize(); return out; }
+        ComPtr<IStream> mem;
+        if (FAILED(CreateStreamOnHGlobal(NULL, TRUE, &mem)))
+            goto cleanup;
 
-        ComPtr<ISpStream> spStream;
-        hr = CoCreateInstance(CLSID_SpStream, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&spStream));
-        if (FAILED(hr) || !spStream) { if (didInit) CoUninitialize(); return out; }
+        ComPtr<ISpStream> stream;
+        if (FAILED(CoCreateInstance(CLSID_SpStream, nullptr, CLSCTX_ALL,
+                                    IID_PPV_ARGS(&stream))))
+            goto cleanup;
 
-        WAVEFORMATEX wfx{};
-        fill_wfx_48k_stereo_16(wfx);
+        WAVEFORMATEX wfx;
+        fill_wfx_16k_mono_16(wfx);
 
-        hr = spStream->SetBaseStream(baseStream.Get(), SPDFID_WaveFormatEx, &wfx);
-        if (FAILED(hr))
-        {
-            fill_wfx_16k_mono_16(wfx);
-            hr = spStream->SetBaseStream(baseStream.Get(), SPDFID_WaveFormatEx, &wfx);
-        }
-        if (FAILED(hr)) { if (didInit) CoUninitialize(); return out; }
+        if (FAILED(stream->SetBaseStream(mem.Get(), SPDFID_WaveFormatEx, &wfx)))
+            goto cleanup;
 
-        hr = voice->SetOutput(spStream.Get(), TRUE);
-        if (FAILED(hr)) { if (didInit) CoUninitialize(); return out; }
+        if (FAILED(voice->SetOutput(stream.Get(), TRUE)))
+            goto cleanup;
 
-        hr = voice->Speak(text.c_str(), SPF_IS_NOT_XML, nullptr);
+        TTS_DEBUG(L"SAPI Speak()");
+        voice->Speak(text.c_str(), SPF_DEFAULT, nullptr);
+        voice->WaitUntilDone(INFINITE);
 
-        // IMPORTANT: finalize WAV headers/chunks for strict parsers
         voice->SetOutput(nullptr, TRUE);
-        spStream->Close();
-        baseStream->Commit(STGC_DEFAULT);
+        stream->Close();
+        mem->Commit(STGC_DEFAULT);
 
-        if (FAILED(hr)) { if (didInit) CoUninitialize(); return out; }
+        HGLOBAL hg = nullptr;
+        if (FAILED(GetHGlobalFromStream(mem.Get(), &hg)) || !hg)
+            goto cleanup;
 
-        HGLOBAL hGlobal = NULL;
-        hr = GetHGlobalFromStream(baseStream.Get(), &hGlobal);
-        if (FAILED(hr) || !hGlobal) { if (didInit) CoUninitialize(); return out; }
+        SIZE_T sz = GlobalSize(hg);
+        if (sz < 44)
+            goto cleanup;
 
-        SIZE_T sz = GlobalSize(hGlobal);
-        if (sz < 44) { if (didInit) CoUninitialize(); return out; } // must at least have WAV header
+        if (void* p = GlobalLock(hg))
+        {
+            out.resize(sz);
+            std::memcpy(out.data(), p, sz);
+            GlobalUnlock(hg);
+        }
 
-        void* ptr = GlobalLock(hGlobal);
-        if (!ptr) { if (didInit) CoUninitialize(); return out; }
-
-        out.resize(sz);
-        memcpy(out.data(), ptr, sz);
-        GlobalUnlock(hGlobal);
-
-        if (didInit) CoUninitialize();
+    cleanup:
+        if (didInit)
+            CoUninitialize();
         return out;
     }
 }
+

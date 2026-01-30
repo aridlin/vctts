@@ -1,6 +1,7 @@
 #include "keyboard_hook.h"
 #include <atomic>
 #include <chrono>
+#include <windows.h>
 
 static HHOOK g_hook = nullptr;
 static AppState* g_state = nullptr;
@@ -12,6 +13,8 @@ static std::atomic<bool> g_alt{false};
 
 static std::chrono::steady_clock::time_point g_lastToggle = std::chrono::steady_clock::now();
 static double g_toggleDebounceSec = 0.35;
+
+#define HOOK_DEBUG(msg) OutputDebugStringW(L"[HOOK] " msg L"\n")
 
 static void update_modifier(DWORD vk, bool down)
 {
@@ -29,12 +32,12 @@ static void update_modifier(DWORD vk, bool down)
 static void sync_modifiers_from_async()
 {
     const bool shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
-    const bool ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-    const bool altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+    const bool ctrlDown  = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+    const bool altDown   = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
 
     if (g_shift.load() != shiftDown) g_shift.store(shiftDown);
-    if (g_ctrl.load() != ctrlDown) g_ctrl.store(ctrlDown);
-    if (g_alt.load() != altDown) g_alt.store(altDown);
+    if (g_ctrl.load() != ctrlDown)   g_ctrl.store(ctrlDown);
+    if (g_alt.load() != altDown)     g_alt.store(altDown);
 
     if (g_state) {
         g_state->shift.store(g_shift.load());
@@ -52,6 +55,17 @@ static bool debounce_ok()
     return true;
 }
 
+static bool is_valid_utf16_char(wchar_t c)
+{
+    // Reject surrogate halves (invalid scalar value by itself)
+    if (c >= 0xD800 && c <= 0xDFFF) return false;
+
+    // Reject control chars except space/newline/tab (optional)
+    if (c < 0x20 && c != L' ' && c != L'\n' && c != L'\t') return false;
+
+    return true;
+}
+
 static void append_vk_as_text(DWORD vkCode, DWORD scanCode)
 {
     if (!g_state || !g_cb.onAppendText) return;
@@ -66,8 +80,17 @@ static void append_vk_as_text(DWORD vkCode, DWORD scanCode)
 
     wchar_t out[8]{};
     int rc = ToUnicodeEx((UINT)vkCode, (UINT)scanCode, ks, out, 8, 0, layout);
-    if (rc > 0) {
-        g_cb.onAppendText(*g_state, out, rc);
+
+    if (rc <= 0) {
+        // rc == -1: dead key; rc == 0: no translation
+        return;
+    }
+
+    // Append only valid characters (avoid garbage in buffer)
+    for (int i = 0; i < rc; ++i)
+    {
+        if (!is_valid_utf16_char(out[i])) continue;
+        g_cb.onAppendText(*g_state, &out[i], 1);
     }
 }
 
@@ -161,3 +184,4 @@ namespace keyboard_hook
 
     bool is_installed() { return g_hook != nullptr; }
 }
+
