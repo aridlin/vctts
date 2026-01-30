@@ -24,5 +24,7 @@ namespace win32_window
     void set_msg_handler(Win32MsgHandler handler);
 
     LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void force_foreground(HWND hwnd);
+
 }
 

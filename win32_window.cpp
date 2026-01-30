@@ -158,5 +158,23 @@ namespace win32_window
         SetActiveWindow(state.prevForeground);
         state.prevForeground = nullptr;
     }
+    void force_foreground(HWND hwnd)
+    {
+        HWND fg = GetForegroundWindow();
+        if (!fg || fg == hwnd) {
+            SetForegroundWindow(hwnd);
+            return;
+        }
+
+        DWORD fgThread = GetWindowThreadProcessId(fg, nullptr);
+        DWORD myThread = GetCurrentThreadId();
+
+        AttachThreadInput(fgThread, myThread, TRUE);
+        SetForegroundWindow(hwnd);
+        SetFocus(hwnd);
+        SetActiveWindow(hwnd);
+        AttachThreadInput(fgThread, myThread, FALSE);
+    }
+
 }
 

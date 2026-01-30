@@ -4,14 +4,27 @@ project(tts_overlay LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# -------------------------
+# Static MSVC runtime (/MT)
+# -------------------------
+# This is THE important part for portability
+if (MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+# -------------------------
+# Paths
+# -------------------------
 set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/extern/imgui")
 
-# ---- cppwinrt headers (Windows SDK, header-only) ----
-# Adjust SDK version if needed
+# cppwinrt headers from Windows SDK (header-only)
 set(CPPWINRT_INCLUDE
     "C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/cppwinrt"
 )
 
+# -------------------------
+# Executable
+# -------------------------
 add_executable(tts_overlay WIN32
     main.cpp
     win32_window.cpp
@@ -22,18 +35,20 @@ add_executable(tts_overlay WIN32
     tts_keyless.cpp
     audio_devices.cpp
     audio_playback.cpp
+    icon.rc
 
-    # Dear ImGui core
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
-
-    # Dear ImGui backends
     ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
     ${IMGUI_DIR}/backends/imgui_impl_dx11.cpp
 )
 
+
+# -------------------------
+# Includes
+# -------------------------
 target_include_directories(tts_overlay PRIVATE
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
@@ -42,6 +57,9 @@ target_include_directories(tts_overlay PRIVATE
     ${CPPWINRT_INCLUDE}
 )
 
+# -------------------------
+# Compile definitions
+# -------------------------
 target_compile_definitions(tts_overlay PRIVATE
     UNICODE
     _UNICODE
@@ -49,6 +67,9 @@ target_compile_definitions(tts_overlay PRIVATE
     NOMINMAX
 )
 
+# -------------------------
+# Link libraries
+# -------------------------
 target_link_libraries(tts_overlay PRIVATE
     d3d11
     dxgi
