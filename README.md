@@ -1,49 +1,52 @@
 # VOICECHAT TTS
 
-A lightweight Windows overlay that lets you type a short message and play it over two output devices at once. It is designed for games/voice chat where you need TTS quickly without disturbing the mic.
+A lightweight Windows overlay that lets you type a short message and play it over **two output devices at once**.  
+Designed for games and voice chat where you need **fast TTS** without touching your microphone.
+
+---
 
 ## Features
-- Windows SAPI text-to-speech playback (offline).
-- Optional keyless online TTS backup (toggle in the config window).
-- Dual output device playback via miniaudio/WASAPI.
-- Global hotkeys for quick start/stop.
+
+- **Offline Windows TTS** using system voices (WinRT / SAPI).
+  - Uses installed Windows voices (e.g. *Adam, Zira, David*, etc.).
+  - Voice selectable from the config menu.
+- **Optional online keyless TTS fallback** (StreamElements).
+- **Dual output device playback** (play to two speakers / virtual cables simultaneously).
+- **Reliable keyboard input** (proper layout + dead-key handling via `WM_CHAR`).
+- **Global hotkeys** for quick start/stop while in-game.
+- **No microphone interference** – pure playback.
+
+---
 
 ## Requirements
-- Windows 10/11.
-- Visual Studio 2022 (or newer) with the Desktop C++ workload.
-- CMake 3.20+.
-- `extern/` dependencies (ImGui + miniaudio) downloaded from the provided zip.
 
-## Getting the extern dependencies
-The `extern` folder is distributed as a zip that already contains the `extern/` directory and its subfolders.
+- **Windows 10 / 11**
+- **Visual Studio 2022** or newer (Desktop C++ workload)
+- **CMake 3.20+**
+- A C++20-compatible compiler (MSVC or clang-cl)
 
-1. Download the zip: <https://filebin.net/m4gipplj7btweg6c/extern.zip>
-2. Extract it at the repository root. You should end up with:
+---
+
+## Dependencies
+
+All required third-party libraries are **already included** in the repository:
 
 ```
 extern/
-  imgui/
-  miniaudio/
+imgui/
+miniaudio/
 ```
 
-The repository ignores `extern/` and `build/` by default.
+No external downloads or package managers required.
+
+---
 
 ## Build (Windows)
-```
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++
+
+### Using CMake + Ninja (recommended)
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-## Usage
-1. Launch the app and select two output devices.
-2. (Optional) Click **Keyless backup** to enable the online fallback.
-3. Click **Start** to enable hotkeys.
-4. Use the hotkeys to start/stop recording:
-   - Toggle: **Ctrl + Backspace**
-   - Stop: **Enter**
-   - Exit: **Ctrl + Shift + Tab + E**
-
-When you stop recording, the typed text is converted to speech and played to the chosen devices.
-
-## Keyless backup TTS
-The optional keyless backup uses the StreamElements public TTS endpoint (no API key required). It is intended as a fallback when the local SAPI voice is not desired. Because it is online, it requires an active internet connection.
