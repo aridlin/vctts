@@ -8,9 +8,12 @@
 #include "audio_playback.h"
 #include "tts_keyless.h"
 #include "tts_winrt.h"
+#include "custom_tts.h"
 #include <windows.h>
 #include <objbase.h>
 #include <thread>
+#include <vector>
+#include <string>
 
 // Include ImGui backend header (where WndProcHandler normally lives)
 #include "imgui_impl_win32.h"
@@ -32,8 +35,17 @@ static std::wstring SanitizeForSapi(const std::wstring& in)
     }
     return out;
 }
+
 static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, bool preferKeyless)
 {
+    if (g_state &&
+        g_state->sapiVoiceIndex >= 0 &&
+        g_state->sapiVoiceIndex < (int)g_state->sapiVoices.size() &&
+        g_state->sapiVoices[g_state->sapiVoiceIndex] == L"Custom")
+    {
+        return custom_tts::SpeakCustomCommand(text, g_state->customTtsCommand);
+    }
+
     if (preferKeyless)
     {
         auto audio = tts_keyless::speak_to_audio_memory(text);

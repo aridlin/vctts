@@ -101,8 +101,10 @@ UiAction ImGuiUi::draw_config(AppState& s)
     ImGui::SameLine();
     ImGui::TextDisabled("Uses an online keyless TTS if enabled.");
     if (s.sapiVoices.empty())
+    {
         s.sapiVoices = tts_winrt::list_voices();
-
+        s.sapiVoices.push_back(L"Custom");
+    }
 
     if (!s.sapiVoices.empty())
     {
@@ -145,6 +147,13 @@ UiAction ImGuiUi::draw_config(AppState& s)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
+        }
+
+        if (s.sapiVoiceIndex >= 0 && s.sapiVoiceIndex < (int)s.sapiVoices.size() &&
+            s.sapiVoices[s.sapiVoiceIndex] == L"Custom")
+        {
+            ImGui::InputText("Command", s.customTtsCommand, sizeof(s.customTtsCommand));
+            ImGui::TextDisabled("e.g. C:\\path\\customtts.exe {text}");
         }
     }
 

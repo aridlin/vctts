@@ -48,6 +48,9 @@ struct AppState {
     std::vector<std::wstring> sapiVoices;
     int sapiVoiceIndex = 0;
 
+    // ---- Custom TTS ----
+    char customTtsCommand[1024] = "";
+
     void clearBuffer() {
         std::lock_guard<std::mutex> lock(bufMutex);
         buffer.clear();
