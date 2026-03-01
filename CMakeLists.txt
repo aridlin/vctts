@@ -87,3 +87,23 @@ target_link_libraries(tts_overlay PRIVATE
     winhttp
 )
 
+# -------------------------
+# Tests
+# -------------------------
+option(BUILD_TESTS "Build tests" OFF)
+if(BUILD_TESTS)
+    enable_testing()
+    add_executable(test_app_state tests/test_app_state.cpp)
+    target_include_directories(test_app_state PRIVATE
+        ${CMAKE_SOURCE_DIR}
+    )
+    if(NOT WIN32)
+        target_include_directories(test_app_state PRIVATE
+            ${CMAKE_SOURCE_DIR}/tests/include
+        )
+    endif()
+    if(UNIX)
+        target_link_libraries(test_app_state PRIVATE pthread)
+    endif()
+    add_test(NAME AppStateTest COMMAND test_app_state)
+endif()
