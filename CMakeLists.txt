@@ -33,6 +33,7 @@ add_executable(tts_overlay WIN32
     keyboard_hook.cpp
     tts_winrt.cpp
     tts_keyless.cpp
+    custom_tts.cpp
     audio_devices.cpp
     audio_playback.cpp
     icon.rc
@@ -56,6 +57,14 @@ target_include_directories(tts_overlay PRIVATE
     ${CMAKE_SOURCE_DIR}/extern/miniaudio
     ${CPPWINRT_INCLUDE}
 )
+
+# -------------------------
+# Tests
+# -------------------------
+enable_testing()
+add_executable(test_custom test_custom.cpp custom_tts.cpp)
+target_include_directories(test_custom PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME test_custom COMMAND test_custom)
 
 # -------------------------
 # Compile definitions

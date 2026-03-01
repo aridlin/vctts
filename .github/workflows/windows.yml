@@ -32,3 +32,23 @@ jobs:
 
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Run Tests
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
+        working-directory: build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tts_overlay_windows
+          path: build/${{ env.BUILD_TYPE }}/tts_overlay.exe
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Release
+          files: build/${{ env.BUILD_TYPE }}/tts_overlay.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
