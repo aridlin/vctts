@@ -17,11 +17,6 @@ endif()
 # -------------------------
 set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/extern/imgui")
 
-# cppwinrt headers from Windows SDK (header-only)
-set(CPPWINRT_INCLUDE
-    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/cppwinrt"
-)
-
 # -------------------------
 # Executable
 # -------------------------
@@ -55,7 +50,6 @@ target_include_directories(tts_overlay PRIVATE
     ${IMGUI_DIR}/backends
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/miniaudio
-    ${CPPWINRT_INCLUDE}
 )
 
 # -------------------------
