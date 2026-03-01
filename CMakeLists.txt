@@ -85,6 +85,7 @@ target_link_libraries(tts_overlay PRIVATE
     propsys
     avrt
     winhttp
+    runtimeobject
 )
 
 # -------------------------
