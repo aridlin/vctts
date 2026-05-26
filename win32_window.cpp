@@ -29,13 +29,6 @@ namespace win32_window
         {
             switch (msg)
             {
-            case WM_KEYDOWN:
-                if (wParam == VK_BACK) {
-                    s->backspace();
-                    return 0;
-                }
-                break;
-
             case WM_CHAR:
             {
                 wchar_t ch = (wchar_t)wParam;
@@ -177,4 +170,3 @@ namespace win32_window
     }
 
 }
-
