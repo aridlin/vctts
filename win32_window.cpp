@@ -4,6 +4,7 @@
 
 namespace {
     Win32MsgHandler g_msgHandler = nullptr;
+    constexpr const wchar_t* kIconResource = L"IDI_ICON1";
 
     void apply_dark_titlebar(HWND hwnd)
     {
@@ -18,6 +19,18 @@ namespace {
         DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &caption, sizeof(caption));
         DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &border, sizeof(border));
         DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &titleText, sizeof(titleText));
+    }
+
+    HICON load_app_icon(HINSTANCE hInstance, int cx, int cy)
+    {
+        return (HICON)LoadImageW(
+            hInstance,
+            kIconResource,
+            IMAGE_ICON,
+            cx,
+            cy,
+            LR_SHARED
+        );
     }
 }
 
@@ -94,6 +107,8 @@ namespace win32_window
         wc.lpfnWndProc = wndproc;
         wc.hInstance = hInstance;
         wc.lpszClassName = className;
+        wc.hIcon = load_app_icon(hInstance, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
+        wc.hIconSm = load_app_icon(hInstance, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 
         if (!RegisterClassExW(&wc))
             return false;
@@ -116,6 +131,8 @@ namespace win32_window
 
         state.hwnd = hwnd;
         apply_dark_titlebar(hwnd);
+        SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wc.hIcon);
+        SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)wc.hIconSm);
 
         // Store AppState* for WM_CHAR capture
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)&state);

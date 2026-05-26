@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(tts_overlay LANGUAGES CXX)
+project(vctts LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,7 +15,7 @@ endif()
 # -------------------------
 # Executable
 # -------------------------
-add_executable(tts_overlay WIN32
+add_executable(vctts WIN32
     main.cpp
     win32_window.cpp
     native_ui.cpp
@@ -32,7 +32,7 @@ add_executable(tts_overlay WIN32
 # -------------------------
 # Includes
 # -------------------------
-target_include_directories(tts_overlay PRIVATE
+target_include_directories(vctts PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/miniaudio
 )
@@ -48,7 +48,7 @@ add_test(NAME test_custom COMMAND test_custom)
 # -------------------------
 # Compile definitions
 # -------------------------
-target_compile_definitions(tts_overlay PRIVATE
+target_compile_definitions(vctts PRIVATE
     UNICODE
     _UNICODE
     WIN32_LEAN_AND_MEAN
@@ -58,7 +58,7 @@ target_compile_definitions(tts_overlay PRIVATE
 # -------------------------
 # Link libraries
 # -------------------------
-target_link_libraries(tts_overlay PRIVATE
+target_link_libraries(vctts PRIVATE
     user32
     gdi32
     gdiplus
