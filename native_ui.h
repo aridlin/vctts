@@ -20,7 +20,8 @@ enum class UiAction
     StopRecording,
     TestTts,
     TestTone,
-    RefreshDevices
+    RefreshDevices,
+    OpenConfig
 };
 
 class NativeUi
@@ -49,12 +50,18 @@ private:
         DeviceA,
         DeviceB,
         Keyless,
+        TranslatorMode,
+        TargetLanguage,
+        IncomingMode,
+        IncomingApp,
+        MuteIncoming,
         Voice,
         CustomCommand,
         Start,
         TestTone,
         TestTts,
         StopSpeak,
+        Config,
         DropdownItemBase = 1000
     };
 
@@ -76,6 +83,8 @@ private:
     bool trackingMouse_ = false;
     bool mouseDown_ = false;
     bool customInputFocused_ = false;
+    bool targetInputFocused_ = false;
+    bool incomingAppInputFocused_ = false;
     float dpiScale_ = 1.0f;
     POINT mouse_{ -10000, -10000 };
     Hit active_ = Hit::None;
@@ -85,6 +94,8 @@ private:
     int deviceSignature_ = -1;
     int voiceSignature_ = -1;
     std::wstring customCommandWide_;
+    std::wstring targetLangWide_;
+    std::wstring incomingAppWide_;
 
     int dropdown_visible_start() const;
     bool is_clickable(Hit hit) const;

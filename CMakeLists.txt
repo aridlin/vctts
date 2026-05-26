@@ -20,8 +20,11 @@ add_executable(vctts WIN32
     win32_window.cpp
     native_ui.cpp
     keyboard_hook.cpp
+    app_audio_control.cpp
+    incoming_translator.cpp
     tts_winrt.cpp
     tts_keyless.cpp
+    translator.cpp
     custom_tts.cpp
     audio_devices.cpp
     audio_playback.cpp

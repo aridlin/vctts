@@ -22,6 +22,9 @@ struct AppState {
     std::atomic<bool> recording{false};
     std::atomic<bool> configDone{false};
     std::atomic<bool> useKeylessBackup{false};
+    std::atomic<bool> translatorMode{false};
+    std::atomic<bool> incomingTranslatorMode{false};
+    std::atomic<bool> muteIncomingApp{false};
 
     // ---- Timings ----
     int timeoutSeconds = 30;
@@ -50,6 +53,10 @@ struct AppState {
 
     // ---- Custom TTS ----
     char customTtsCommand[1024] = "";
+
+    // ---- Translator ----
+    char translatorTargetLang[32] = "es";
+    char incomingAppExe[260] = "";
 
     void clearBuffer() {
         std::lock_guard<std::mutex> lock(bufMutex);
@@ -90,4 +97,3 @@ struct AppState {
         return out;
     }
 };
-

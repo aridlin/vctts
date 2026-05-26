@@ -11,6 +11,8 @@ Designed for games and voice chat where you need **fast TTS** without touching y
   - Uses installed Windows voices (e.g. *Adam, Zira, David*, etc.).
   - Voice selectable from the config menu.
 - **Optional online keyless TTS fallback** (StreamElements).
+- **Translator mode** using an online translation pass before speech synthesis, with target-language voice preference.
+- **Incoming app setup** with target executable and optional per-app mute while the listener pipeline is running.
 - **Dual output device playback** (play to two speakers / virtual cables simultaneously).
 - **Reliable keyboard input** (proper layout + dead-key handling via `WM_CHAR`).
 - **Global hotkeys** for quick start/stop while in-game.

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cwctype>
 
 namespace
 {
@@ -293,7 +294,7 @@ bool NativeUi::handle_message(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
             GetCursorPos(&pt);
             ScreenToClient(hwnd_, &pt);
             Hit hit = hit_test((float)pt.x, (float)pt.y);
-            if (hit == Hit::CustomCommand) {
+            if (hit == Hit::CustomCommand || hit == Hit::TargetLanguage || hit == Hit::IncomingApp) {
                 SetCursor(LoadCursorW(nullptr, IDC_IBEAM));
                 outResult = TRUE;
                 return true;
@@ -397,6 +398,14 @@ void NativeUi::sync_model()
     std::wstring fromState = custom_tts::Utf8ToWide(state_->customTtsCommand);
     if (!customInputFocused_ && customCommandWide_ != fromState)
         customCommandWide_ = fromState;
+
+    std::wstring targetFromState = custom_tts::Utf8ToWide(state_->translatorTargetLang);
+    if (!targetInputFocused_ && targetLangWide_ != targetFromState)
+        targetLangWide_ = targetFromState;
+
+    std::wstring appFromState = custom_tts::Utf8ToWide(state_->incomingAppExe);
+    if (!incomingAppInputFocused_ && incomingAppWide_ != appFromState)
+        incomingAppWide_ = appFromState;
 }
 
 void NativeUi::queue_action(UiAction action)
@@ -410,6 +419,8 @@ void NativeUi::reset_interaction()
     hot_ = Hit::None;
     mouseDown_ = false;
     customInputFocused_ = false;
+    targetInputFocused_ = false;
+    incomingAppInputFocused_ = false;
     close_dropdown();
 }
 
@@ -528,7 +539,35 @@ void NativeUi::paint_config(Graphics& g, const Rect& bounds)
     button(Hit::Refresh, L"Refresh devices", rect(fieldX, y, 146.0f, 34.0f));
     checkbox(Hit::Keyless, L"Use online keyless fallback", rect(fieldX + 166.0f, y - 2.0f, fieldW - 166.0f, 38.0f),
              state_->useKeylessBackup.load());
-    y += 54.0f;
+    y += 48.0f;
+
+    checkbox(Hit::TranslatorMode, L"Translator mode", rect(fieldX, y - 2.0f, 170.0f, 38.0f),
+             state_->translatorMode.load());
+    Rect langR = rect(fieldX + 188.0f, y, 118.0f, 34.0f);
+    bool langHot = hot_ == Hit::TargetLanguage;
+    fill_round(g, langR, 8.0f, Color(255, 20, 23, 30));
+    stroke_round(g, langR, 8.0f, targetInputFocused_ ? accent() : langHot ? border_hot() : border(),
+                 targetInputFocused_ ? 1.6f : 1.0f);
+    draw_string(g, targetLangWide_.empty() ? L"es" : targetLangWide_,
+                rect(langR.x + 12.0f, langR.y, langR.w - 24.0f, langR.h), 14.0f,
+                targetLangWide_.empty() ? dim() : text());
+    draw_string(g, L"target language", rect(langR.x + langR.w + 12.0f, langR.y, fieldW - 318.0f, langR.h),
+                13.0f, muted());
+    y += 50.0f;
+
+    checkbox(Hit::IncomingMode, L"Incoming listen", rect(fieldX, y - 2.0f, 170.0f, 38.0f),
+             state_->incomingTranslatorMode.load());
+    Rect appR = rect(fieldX + 188.0f, y, std::min(210.0f, fieldW - 360.0f), 34.0f);
+    bool appHot = hot_ == Hit::IncomingApp;
+    fill_round(g, appR, 8.0f, Color(255, 20, 23, 30));
+    stroke_round(g, appR, 8.0f, incomingAppInputFocused_ ? accent() : appHot ? border_hot() : border(),
+                 incomingAppInputFocused_ ? 1.6f : 1.0f);
+    draw_string(g, incomingAppWide_.empty() ? L"discord.exe" : incomingAppWide_,
+                rect(appR.x + 12.0f, appR.y, appR.w - 24.0f, appR.h), 14.0f,
+                incomingAppWide_.empty() ? dim() : text());
+    checkbox(Hit::MuteIncoming, L"mute app", rect(appR.x + appR.w + 18.0f, y - 2.0f, 126.0f, 38.0f),
+             state_->muteIncomingApp.load());
+    y += 50.0f;
 
     std::vector<std::wstring> voices = voice_names();
     std::wstring voice = voices.empty() ? L"No voices found" : voices[state_->sapiVoiceIndex];
@@ -624,8 +663,16 @@ void NativeUi::paint_recording(Graphics& g, const Rect& bounds)
     draw_string(g, L"Stop && Speak", stopR, 14.0f, Color(255, 255, 255, 255), FontStyleRegular,
                 StringAlignmentCenter, StringAlignmentCenter);
 
+    Rect configR = rect(stopR.x + stopR.w + 14.0f, stopR.y, 96.0f, 36.0f);
+    bool configHot = hot_ == Hit::Config;
+    bool configDown = active_ == Hit::Config && mouseDown_;
+    fill_round(g, configR, 9.0f, configDown ? panel3() : configHot ? Color(255, 47, 54, 68) : panel2());
+    stroke_round(g, configR, 9.0f, configHot ? border_hot() : border());
+    draw_string(g, L"Config", configR, 14.0f, text(), FontStyleRegular,
+                StringAlignmentCenter, StringAlignmentCenter);
+
     draw_string(g, L"Ctrl+Backspace toggles  /  Enter stops  /  Ctrl+Shift+Tab+E exits",
-                rect(stopR.x + stopR.w + 18.0f, stopR.y, shell.w - stopR.w - 60.0f, stopR.h), 13.0f, muted());
+                rect(configR.x + configR.w + 18.0f, stopR.y, shell.w - stopR.w - configR.w - 88.0f, stopR.h), 13.0f, muted());
 }
 
 NativeUi::Hit NativeUi::hit_test(float x, float y) const
@@ -643,7 +690,10 @@ NativeUi::Hit NativeUi::hit_test(float x, float y) const
 
     if (!showingConfig_) {
         Rect stopR = rect(shell.x + kPad, shell.y + shell.h - 50.0f, 146.0f, 36.0f);
-        return contains(stopR, x, y) ? Hit::StopSpeak : Hit::None;
+        if (contains(stopR, x, y)) return Hit::StopSpeak;
+        Rect configR = rect(stopR.x + stopR.w + 14.0f, stopR.y, 96.0f, 36.0f);
+        if (contains(configR, x, y)) return Hit::Config;
+        return Hit::None;
     }
 
     if (dropdown_.open) {
@@ -673,7 +723,15 @@ NativeUi::Hit NativeUi::hit_test(float x, float y) const
     cy += kItemH + 16.0f;
     if (contains(rect(fieldX, cy, 146.0f, 34.0f), x, y)) return Hit::Refresh;
     if (contains(rect(fieldX + 166.0f, cy - 2.0f, fieldW - 166.0f, 38.0f), x, y)) return Hit::Keyless;
-    cy += 54.0f;
+    cy += 48.0f;
+    if (contains(rect(fieldX, cy - 2.0f, 170.0f, 38.0f), x, y)) return Hit::TranslatorMode;
+    if (contains(rect(fieldX + 188.0f, cy, 118.0f, 34.0f), x, y)) return Hit::TargetLanguage;
+    cy += 50.0f;
+    float appW = std::min(210.0f, fieldW - 360.0f);
+    if (contains(rect(fieldX, cy - 2.0f, 170.0f, 38.0f), x, y)) return Hit::IncomingMode;
+    if (contains(rect(fieldX + 188.0f, cy, appW, 34.0f), x, y)) return Hit::IncomingApp;
+    if (contains(rect(fieldX + 188.0f + appW + 18.0f, cy - 2.0f, 126.0f, 38.0f), x, y)) return Hit::MuteIncoming;
+    cy += 50.0f;
     if (contains(rect(fieldX, cy, fieldW, kItemH), x, y)) return Hit::Voice;
     cy += kItemH + kGap;
 
@@ -700,6 +758,8 @@ void NativeUi::activate_hit(Hit hit)
     }
 
     if (hit != Hit::CustomCommand) customInputFocused_ = false;
+    if (hit != Hit::TargetLanguage) targetInputFocused_ = false;
+    if (hit != Hit::IncomingApp) incomingAppInputFocused_ = false;
 
     switch (hit)
     {
@@ -727,6 +787,26 @@ void NativeUi::activate_hit(Hit hit)
     case Hit::Keyless:
         close_dropdown();
         state_->useKeylessBackup.store(!state_->useKeylessBackup.load());
+        break;
+    case Hit::TranslatorMode:
+        close_dropdown();
+        state_->translatorMode.store(!state_->translatorMode.load());
+        break;
+    case Hit::TargetLanguage:
+        close_dropdown();
+        targetInputFocused_ = true;
+        break;
+    case Hit::IncomingMode:
+        close_dropdown();
+        state_->incomingTranslatorMode.store(!state_->incomingTranslatorMode.load());
+        break;
+    case Hit::IncomingApp:
+        close_dropdown();
+        incomingAppInputFocused_ = true;
+        break;
+    case Hit::MuteIncoming:
+        close_dropdown();
+        state_->muteIncomingApp.store(!state_->muteIncomingApp.load());
         break;
     case Hit::Voice:
         if (dropdown_.open && dropdown_.owner == Hit::Voice) {
@@ -757,6 +837,9 @@ void NativeUi::activate_hit(Hit hit)
     case Hit::StopSpeak:
         queue_action(UiAction::StopRecording);
         break;
+    case Hit::Config:
+        queue_action(UiAction::OpenConfig);
+        break;
     default:
         close_dropdown();
         break;
@@ -776,7 +859,7 @@ void NativeUi::activate_hit(Hit hit)
         const float fieldW = card.w - 40.0f - labelW;
         float cy = card.y + 22.0f;
         if (hit == Hit::DeviceB) cy += kItemH + kGap;
-        if (hit == Hit::Voice) cy += (kItemH + kGap) * 2.0f + 16.0f + 54.0f - kGap;
+        if (hit == Hit::Voice) cy += (kItemH + kGap) * 2.0f + 16.0f + 48.0f + 50.0f + 50.0f;
         dropdown_.rect = rect(fieldX, cy, fieldW, kItemH);
     }
 }
@@ -816,7 +899,43 @@ void NativeUi::commit_dropdown_item(int index)
 
 void NativeUi::handle_char(wchar_t ch)
 {
-    if (!customInputFocused_ || !state_) return;
+    if (!state_) return;
+    if (incomingAppInputFocused_) {
+        if (ch == L'\r' || ch == L'\n') {
+            incomingAppInputFocused_ = false;
+            return;
+        }
+        if (ch == L'\b') {
+            if (!incomingAppWide_.empty()) incomingAppWide_.pop_back();
+        } else if (ch >= 32 && incomingAppWide_.size() < 259) {
+            incomingAppWide_.push_back(ch);
+        }
+
+        std::string u8 = custom_tts::WideToUtf8(incomingAppWide_);
+        std::strncpy(state_->incomingAppExe, u8.c_str(), sizeof(state_->incomingAppExe) - 1);
+        state_->incomingAppExe[sizeof(state_->incomingAppExe) - 1] = '\0';
+        return;
+    }
+
+    if (targetInputFocused_) {
+        if (ch == L'\r' || ch == L'\n') {
+            targetInputFocused_ = false;
+            return;
+        }
+        if (ch == L'\b') {
+            if (!targetLangWide_.empty()) targetLangWide_.pop_back();
+        } else if (((ch >= L'a' && ch <= L'z') || (ch >= L'A' && ch <= L'Z') || ch == L'-') &&
+                   targetLangWide_.size() < 15) {
+            targetLangWide_.push_back((wchar_t)towlower(ch));
+        }
+
+        std::string u8 = custom_tts::WideToUtf8(targetLangWide_);
+        std::strncpy(state_->translatorTargetLang, u8.c_str(), sizeof(state_->translatorTargetLang) - 1);
+        state_->translatorTargetLang[sizeof(state_->translatorTargetLang) - 1] = '\0';
+        return;
+    }
+
+    if (!customInputFocused_) return;
     if (ch == L'\r' || ch == L'\n') {
         customInputFocused_ = false;
         return;
@@ -837,6 +956,8 @@ void NativeUi::handle_keydown(WPARAM key)
     if (key == VK_ESCAPE) {
         close_dropdown();
         customInputFocused_ = false;
+        targetInputFocused_ = false;
+        incomingAppInputFocused_ = false;
     } else if (dropdown_.open && key == VK_RETURN) {
         commit_dropdown_item(dropdown_.selected);
     } else if (dropdown_.open && key == VK_UP) {

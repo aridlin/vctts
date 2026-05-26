@@ -5,8 +5,10 @@
 #include "controller.h"
 #include "audio_devices.h"
 #include "audio_playback.h"
+#include "incoming_translator.h"
 #include "tts_keyless.h"
 #include "tts_winrt.h"
+#include "translator.h"
 #include "custom_tts.h"
 #include <windows.h>
 #include <objbase.h>
@@ -29,7 +31,7 @@ static std::wstring SanitizeForSapi(const std::wstring& in)
     return out;
 }
 
-static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, bool preferKeyless)
+static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, bool preferKeyless, const std::string& voiceLanguage = {})
 {
     if (g_state &&
         g_state->sapiVoiceIndex >= 0 &&
@@ -43,10 +45,10 @@ static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, boo
     {
         auto audio = tts_keyless::speak_to_audio_memory(text);
         if (!audio.empty()) return audio;
-        return tts_winrt::speak_wav(text);
+        return tts_winrt::speak_wav_with_language(text, voiceLanguage);
     }
 
-    auto audio = tts_winrt::speak_wav(text);
+    auto audio = tts_winrt::speak_wav_with_language(text, voiceLanguage);
     if (!audio.empty()) return audio;
     return tts_keyless::speak_to_audio_memory(text);
 }
@@ -57,8 +59,22 @@ static void OnCommittedText(const std::wstring& text)
 
     std::wstring copy = text;
     const bool preferKeyless = g_state->useKeylessBackup.load();
-    std::thread([copy, preferKeyless]() {
-        auto wav = SpeakWithFallback(SanitizeForSapi(copy), preferKeyless);
+    const bool translate = g_state->translatorMode.load();
+    const std::string targetLang = g_state->translatorTargetLang;
+    std::thread([copy, preferKeyless, translate, targetLang]() {
+        std::wstring textToSpeak = SanitizeForSapi(copy);
+        std::string voiceLang;
+        if (translate)
+        {
+            auto translated = translator::translate_auto(textToSpeak, targetLang);
+            if (!translated.text.empty())
+            {
+                textToSpeak = SanitizeForSapi(translated.text);
+                voiceLang = targetLang;
+            }
+        }
+
+        auto wav = SpeakWithFallback(textToSpeak, preferKeyless, voiceLang);
         if (wav.empty()) {
             MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
             return;
@@ -144,6 +160,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     {
         OutputDebugStringW(L"[Hotkey] RegisterHotKey failed for Ctrl+Backspace; low-level hook fallback remains active.\n");
     }
+    incoming_translator::start(state);
 
     MSG msg{};
     while (!state.exitRequested.load())
@@ -190,13 +207,33 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         {
             RefreshOutputDevices(state);
         }
+        else if (action == UiAction::OpenConfig)
+        {
+            state.recording.store(false);
+            state.clearBuffer();
+            state.configDone.store(false);
+            win32_window::show(state);
+            win32_window::set_topmost(state, true);
+        }
         else if (action == UiAction::TestTts)
         {
             std::thread([]{
                 if (!g_state) return;
 
                 const bool preferKeyless = g_state->useKeylessBackup.load();
-                auto audio = SpeakWithFallback(L"Test text to speech.", preferKeyless);
+                std::string targetLang = g_state->translatorTargetLang;
+                std::wstring testText = L"Test text to speech.";
+                std::string voiceLang;
+                if (g_state->translatorMode.load())
+                {
+                    auto translated = translator::translate_auto(testText, targetLang);
+                    if (!translated.text.empty())
+                    {
+                        testText = translated.text;
+                        voiceLang = targetLang;
+                    }
+                }
+                auto audio = SpeakWithFallback(testText, preferKeyless, voiceLang);
 
                 wchar_t buf[256];
                 swprintf_s(buf, L"TTS bytes: %llu (preferKeyless=%s)",
@@ -236,6 +273,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 
     g_ui = nullptr;
     ui.shutdown();
+    incoming_translator::stop();
     UnregisterHotKey(state.hwnd, kToggleHotkeyId);
     keyboard_hook::uninstall();
     audio_playback::stop_all();

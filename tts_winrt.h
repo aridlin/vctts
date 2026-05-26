@@ -13,5 +13,8 @@ namespace tts_winrt
 
     // Speak text → WAV in memory (PCM 16-bit)
     std::vector<std::uint8_t> speak_wav(const std::wstring& text);
+    std::vector<std::uint8_t> speak_wav_with_language(
+        const std::wstring& text,
+        const std::string& language
+    );
 }
-
