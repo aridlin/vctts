@@ -14,6 +14,7 @@ Designed for games and voice chat where you need **fast TTS** without touching y
 - **Dual output device playback** (play to two speakers / virtual cables simultaneously).
 - **Reliable keyboard input** (proper layout + dead-key handling via `WM_CHAR`).
 - **Global hotkeys** for quick start/stop while in-game.
+- **Custom Win32 UI backend** inspired by `ftui`, with painted controls and recording overlay.
 - **No microphone interference** – pure playback.
 
 ---
@@ -33,7 +34,6 @@ All required third-party libraries are **already included** in the repository:
 
 ```
 extern/
-imgui/
 miniaudio/
 ```
 
@@ -49,4 +49,3 @@ No external downloads or package managers required.
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
-

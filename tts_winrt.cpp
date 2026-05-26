@@ -56,7 +56,7 @@ namespace tts_winrt
         if (text.empty())
             return out;
 
-        init_apartment(apartment_type::single_threaded);
+        init_apartment(apartment_type::multi_threaded);
 
         SpeechSynthesizer synth;
 
@@ -88,4 +88,3 @@ namespace tts_winrt
         return out;
     }
 }
-

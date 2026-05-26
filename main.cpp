@@ -1,7 +1,6 @@
 #include "app_state.h"
 #include "win32_window.h"
-#include "d3d11_renderer.h"
-#include "imgui_ui.h"
+#include "native_ui.h"
 #include "keyboard_hook.h"
 #include "controller.h"
 #include "audio_devices.h"
@@ -15,16 +14,10 @@
 #include <vector>
 #include <string>
 
-// Include ImGui backend header (where WndProcHandler normally lives)
-#include "imgui_impl_win32.h"
-
-// Some ImGui forks/versions don't expose the symbol in the header depending on macros.
-// This forward-declare makes compilation deterministic.
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-static D3D11Renderer* g_renderer = nullptr;
 static Controller* g_ctrl = nullptr;
 static AppState*   g_state = nullptr;
+static NativeUi*   g_ui = nullptr;
+static constexpr int kToggleHotkeyId = 1;
 static std::wstring SanitizeForSapi(const std::wstring& in)
 {
     std::wstring out;
@@ -82,20 +75,15 @@ static void HookExit(AppState& s) { s.exitRequested.store(true); }
 
 static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT& outResult)
 {
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+    if (msg == WM_HOTKEY && wParam == kToggleHotkeyId)
     {
-        outResult = 1;
-        return true;
-    }
-
-    if (msg == WM_SIZE && g_renderer && wParam != SIZE_MINIMIZED)
-    {
-        const UINT w = (UINT)LOWORD(lParam);
-        const UINT h = (UINT)HIWORD(lParam);
-        g_renderer->resize(w, h);
+        if (g_ctrl) g_ctrl->toggle_recording();
         outResult = 0;
         return true;
     }
+
+    if (g_ui && g_ui->handle_message(hWnd, msg, wParam, lParam, outResult))
+        return true;
 
     return false;
 }
@@ -103,37 +91,33 @@ static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LR
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
 {
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
     AppState state;
     g_state = &state;
 
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-    constexpr const wchar_t* kClassName = L"TTS_OVERLAY_IMGUI";
+    constexpr const wchar_t* kClassName = L"TTS_OVERLAY_NATIVE";
     constexpr const wchar_t* kTitle     = L"TTS Voice Typing";
+    const int dpi = (int)GetDpiForSystem();
+    const int windowW = MulDiv(760, dpi, 96);
+    const int windowH = MulDiv(520, dpi, 96);
 
-    if (!win32_window::create(state, hInstance, kClassName, kTitle, 560, 320, 720, 360))
+    if (!win32_window::create(state, hInstance, kClassName, kTitle, 560, 320, windowW, windowH))
     {
         MessageBoxW(nullptr, L"Failed to create window.", L"Error", MB_ICONERROR);
         CoUninitialize();
         return 1;
     }
 
-    D3D11Renderer renderer;
-    if (!renderer.init(state.hwnd))
-    {
-        MessageBoxW(nullptr, L"Failed to init D3D11.", L"Error", MB_ICONERROR);
-        win32_window::destroy(state, hInstance, kClassName);
-        CoUninitialize();
-        return 1;
-    }
-    g_renderer = &renderer;
-
     win32_window::set_msg_handler(MainMsgHandler);
 
     RefreshOutputDevices(state);
 
-    ImGuiUi ui;
-    ui.init(state.hwnd, renderer);
+    NativeUi ui;
+    ui.init(state.hwnd, state);
+    g_ui = &ui;
 
     win32_window::show(state);
     win32_window::set_topmost(state, true);
@@ -154,6 +138,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     {
         MessageBoxW(nullptr, L"Failed to install keyboard hook.", L"Error", MB_ICONERROR);
         state.exitRequested.store(true);
+    }
+
+    if (!RegisterHotKey(state.hwnd, kToggleHotkeyId, MOD_CONTROL | MOD_NOREPEAT, VK_BACK))
+    {
+        OutputDebugStringW(L"[Hotkey] RegisterHotKey failed for Ctrl+Backspace; low-level hook fallback remains active.\n");
     }
 
     MSG msg{};
@@ -179,7 +168,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
             continue;
         }
 
-        UiAction action = ui.draw(state);
+        UiAction action = ui.tick();
 
         if (action == UiAction::Quit)
         {
@@ -196,6 +185,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         else if (action == UiAction::TestTone)
         {
             audio_playback::play_test_tone_async(state);
+        }
+        else if (action == UiAction::RefreshDevices)
+        {
+            RefreshOutputDevices(state);
         }
         else if (action == UiAction::TestTts)
         {
@@ -238,17 +231,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
             }).detach();
         }
 
-
-        const float clear_rgba[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
-        renderer.begin_frame(clear_rgba);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-        renderer.end_frame();
+        Sleep(16);
     }
 
+    g_ui = nullptr;
     ui.shutdown();
+    UnregisterHotKey(state.hwnd, kToggleHotkeyId);
     keyboard_hook::uninstall();
     audio_playback::stop_all();
-    renderer.shutdown();
     win32_window::destroy(state, hInstance, kClassName);
 
     CoUninitialize();

@@ -13,18 +13,12 @@ if (MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # -------------------------
-# Paths
-# -------------------------
-set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/extern/imgui")
-
-# -------------------------
 # Executable
 # -------------------------
 add_executable(tts_overlay WIN32
     main.cpp
     win32_window.cpp
-    d3d11_renderer.cpp
-    imgui_ui.cpp
+    native_ui.cpp
     keyboard_hook.cpp
     tts_winrt.cpp
     tts_keyless.cpp
@@ -32,13 +26,6 @@ add_executable(tts_overlay WIN32
     audio_devices.cpp
     audio_playback.cpp
     icon.rc
-
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_dx11.cpp
 )
 
 
@@ -46,8 +33,6 @@ add_executable(tts_overlay WIN32
 # Includes
 # -------------------------
 target_include_directories(tts_overlay PRIVATE
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/extern/miniaudio
 )
@@ -74,11 +59,10 @@ target_compile_definitions(tts_overlay PRIVATE
 # Link libraries
 # -------------------------
 target_link_libraries(tts_overlay PRIVATE
-    d3d11
-    dxgi
-    d3dcompiler
     user32
     gdi32
+    gdiplus
+    dwmapi
     imm32
     ole32
     oleaut32

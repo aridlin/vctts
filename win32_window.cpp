@@ -1,8 +1,24 @@
 #include "win32_window.h"
 #include <windows.h>
+#include <dwmapi.h>
 
 namespace {
     Win32MsgHandler g_msgHandler = nullptr;
+
+    void apply_dark_titlebar(HWND hwnd)
+    {
+        if (!hwnd) return;
+
+        BOOL dark = TRUE;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+
+        const COLORREF caption = RGB(17, 19, 24);
+        const COLORREF border = RGB(66, 76, 94);
+        const COLORREF titleText = RGB(236, 241, 247);
+        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &caption, sizeof(caption));
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &border, sizeof(border));
+        DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &titleText, sizeof(titleText));
+    }
 }
 
 namespace win32_window
@@ -29,13 +45,6 @@ namespace win32_window
         {
             switch (msg)
             {
-            case WM_KEYDOWN:
-                if (wParam == VK_BACK) {
-                    s->backspace();
-                    return 0;
-                }
-                break;
-
             case WM_CHAR:
             {
                 wchar_t ch = (wchar_t)wParam;
@@ -106,6 +115,7 @@ namespace win32_window
         }
 
         state.hwnd = hwnd;
+        apply_dark_titlebar(hwnd);
 
         // Store AppState* for WM_CHAR capture
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)&state);
@@ -177,4 +187,3 @@ namespace win32_window
     }
 
 }
-
