@@ -76,10 +76,12 @@ namespace audio_playback
             p->done.store(true);
     }
 
-    bool refresh_output_devices(AppState& s)
+    bool refresh_audio_devices(AppState& s)
     {
         s.outDevices.clear();
         s.outDevicesUtf8.clear();
+        s.inDevices.clear();
+        s.inDevicesUtf8.clear();
 
         ma_context ctx;
         if (ma_context_init(nullptr, 0, nullptr, &ctx) != MA_SUCCESS)
@@ -109,6 +111,18 @@ namespace audio_playback
             s.outDevicesUtf8.push_back(std::move(nameUtf8));
         }
 
+        for (ma_uint32 i = 0; i < captureCount; i++)
+        {
+            std::string nameUtf8 = captureInfos[i].name[0] ? captureInfos[i].name : "(unknown)";
+
+            AudioDevice ad;
+            ad.id = L"";
+            ad.name = Utf8ToWide(nameUtf8);
+
+            s.inDevices.push_back(std::move(ad));
+            s.inDevicesUtf8.push_back(std::move(nameUtf8));
+        }
+
         ma_context_uninit(&ctx);
 
         if (s.outDevicesUtf8.empty())
@@ -119,7 +133,17 @@ namespace audio_playback
 
         if (s.devA < 0 || s.devA >= (int)s.outDevicesUtf8.size()) s.devA = 0;
         if (s.devB < 0 || s.devB >= (int)s.outDevicesUtf8.size()) s.devB = 0;
+        if (!s.inDevicesUtf8.empty()) {
+            if (s.micDev < 0 || s.micDev >= (int)s.inDevicesUtf8.size()) s.micDev = 0;
+            if (s.bridgeVirtualInDev < 0 || s.bridgeVirtualInDev >= (int)s.inDevicesUtf8.size()) s.bridgeVirtualInDev = 0;
+        }
+        if (s.bridgeVirtualOutDev < 0 || s.bridgeVirtualOutDev >= (int)s.outDevicesUtf8.size()) s.bridgeVirtualOutDev = 0;
         return true;
+    }
+
+    bool refresh_output_devices(AppState& s)
+    {
+        return refresh_audio_devices(s);
     }
 
     static bool decode_audio_to_pcm_f32(const std::vector<std::uint8_t>& audioData, DecodedPcm& out)
@@ -170,12 +194,9 @@ namespace audio_playback
         g_playGen.fetch_add(1);
     }
 
-    void play_wav_to_selected_async(const std::vector<std::uint8_t>& wav, const AppState& s)
+    static void play_wav_to_devices_async(const std::vector<std::uint8_t>& wav, int idxA, int idxB)
     {
         if (wav.empty()) return;
-
-        const int idxA = s.devA;
-        const int idxB = s.devB;
 
         const std::uint64_t myGen = g_playGen.fetch_add(1) + 1;
         std::vector<std::uint8_t> wavCopy = wav;
@@ -263,6 +284,16 @@ namespace audio_playback
             ma_device_uninit(&devA);
             ma_context_uninit(&ctx);
         }).detach();
+    }
+
+    void play_wav_to_device_async(const std::vector<std::uint8_t>& wav, int deviceIndex)
+    {
+        play_wav_to_devices_async(wav, deviceIndex, deviceIndex);
+    }
+
+    void play_wav_to_selected_async(const std::vector<std::uint8_t>& wav, const AppState& s)
+    {
+        play_wav_to_devices_async(wav, s.devA, s.devB);
     }
 
     // Simple guaranteed WAV tone generator (48kHz stereo 16-bit PCM)

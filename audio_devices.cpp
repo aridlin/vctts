@@ -3,5 +3,5 @@
 
 void RefreshOutputDevices(AppState& s)
 {
-    audio_playback::refresh_output_devices(s);
+    audio_playback::refresh_audio_devices(s);
 }

@@ -12,6 +12,14 @@ struct AudioDevice {
     std::wstring name;
 };
 
+struct DriverSetupStatus {
+    bool manifestFound = false;
+    bool driverFolderFound = false;
+    bool virtualPlaybackFound = false;
+    bool virtualCaptureFound = false;
+    std::wstring message;
+};
+
 struct AppState {
     // ---- Window / focus ----
     HWND hwnd = nullptr;
@@ -44,8 +52,18 @@ struct AppState {
     // ---- Audio devices ----
     std::vector<AudioDevice> outDevices;
     std::vector<std::string> outDevicesUtf8;
+    std::vector<AudioDevice> inDevices;
+    std::vector<std::string> inDevicesUtf8;
     int devA = 0;
     int devB = 0;
+    int micDev = 0;
+    int bridgeVirtualOutDev = 0;
+    int bridgeVirtualInDev = 0;
+    std::atomic<bool> micBridgeEnabled{false};
+    std::atomic<bool> micMuted{false};
+    float micGain = 1.0f;
+    float ttsGain = 1.0f;
+    DriverSetupStatus driverSetup;
 
     // ---- SAPI voices ----
     std::vector<std::wstring> sapiVoices;
