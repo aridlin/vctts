@@ -146,8 +146,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     constexpr const wchar_t* kClassName = L"TTS_OVERLAY_NATIVE";
     constexpr const wchar_t* kTitle     = L"TTS Voice Typing";
     const int dpi = (int)GetDpiForSystem();
-    const int windowW = MulDiv(760, dpi, 96);
-    const int windowH = MulDiv(680, dpi, 96);
+    const int windowW = MulDiv(880, dpi, 96);
+    const int windowH = MulDiv(780, dpi, 96);
 
     if (!win32_window::create(state, hInstance, kClassName, kTitle, 560, 320, windowW, windowH))
     {

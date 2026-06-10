@@ -494,7 +494,7 @@ void NativeUi::paint_config(Graphics& g, const Rect& bounds)
     Rect quitR = rect(shell.x + shell.w - kPad - 78.0f, shell.y + 22.0f, 78.0f, 32.0f);
     button(Hit::Quit, L"Quit", quitR);
 
-    Rect card = rect(shell.x + kPad, shell.y + 92.0f, shell.w - kPad * 2.0f, shell.h - 168.0f);
+    Rect card = rect(shell.x + kPad, shell.y + 92.0f, shell.w - kPad * 2.0f, shell.h - 190.0f);
     fill_round(g, card, 14.0f, Color(255, 22, 25, 32));
     stroke_round(g, card, 14.0f, Color(255, 48, 56, 70));
 
@@ -756,7 +756,7 @@ NativeUi::Hit NativeUi::hit_test(float x, float y) const
     Rect quitR = rect(shell.x + shell.w - kPad - 78.0f, shell.y + 22.0f, 78.0f, 32.0f);
     if (contains(quitR, x, y)) return Hit::Quit;
 
-    Rect card = rect(shell.x + kPad, shell.y + 92.0f, shell.w - kPad * 2.0f, shell.h - 168.0f);
+    Rect card = rect(shell.x + kPad, shell.y + 92.0f, shell.w - kPad * 2.0f, shell.h - 190.0f);
     const float labelW = bounds.w >= 720.0f ? 112.0f : 0.0f;
     const float fieldX = card.x + 20.0f + labelW;
     const float fieldW = card.w - 40.0f - labelW;
@@ -978,7 +978,7 @@ void NativeUi::activate_hit(Hit hit)
                            (float)(cr.right - cr.left) / dpiScale_,
                            (float)(cr.bottom - cr.top) / dpiScale_);
         Rect shell = inset(bounds, 18.0f, 16.0f);
-        Rect card = rect(shell.x + kPad, shell.y + 92.0f, shell.w - kPad * 2.0f, shell.h - 168.0f);
+        Rect card = rect(shell.x + kPad, shell.y + 92.0f, shell.w - kPad * 2.0f, shell.h - 190.0f);
         const float labelW = bounds.w >= 720.0f ? 112.0f : 0.0f;
         const float fieldX = card.x + 20.0f + labelW;
         const float fieldW = card.w - 40.0f - labelW;
