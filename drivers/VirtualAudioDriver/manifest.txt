@@ -1,0 +1,6 @@
+# Drop the signed VirtualDrivers Virtual-Audio-Driver package files in this folder.
+# Keep this manifest beside the INF so vctts can install/repair and detect endpoints.
+version=25.7.14
+inf=25.7.14\Virtual Audio Driver\VirtualAudioDriver.inf
+playback_matches=Virtual Audio Driver by MTT|Virtual Audio|Virtual Speaker|Cable Input|Voicemeeter Input
+capture_matches=Virtual Mic Driver by MTT|Virtual Mic|Virtual Microphone|Cable Output|Voicemeeter Output

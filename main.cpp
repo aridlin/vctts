@@ -3,9 +3,12 @@
 #include "native_ui.h"
 #include "keyboard_hook.h"
 #include "controller.h"
+#include "overlay_window.h"
 #include "audio_devices.h"
 #include "audio_playback.h"
+#include "driver_setup.h"
 #include "incoming_translator.h"
+#include "mic_bridge.h"
 #include "tts_keyless.h"
 #include "tts_winrt.h"
 #include "translator.h"
@@ -20,6 +23,7 @@ static Controller* g_ctrl = nullptr;
 static AppState*   g_state = nullptr;
 static NativeUi*   g_ui = nullptr;
 static constexpr int kToggleHotkeyId = 1;
+static constexpr int kOpenConfigHotkeyId = 2;
 static std::wstring SanitizeForSapi(const std::wstring& in)
 {
     std::wstring out;
@@ -79,7 +83,16 @@ static void OnCommittedText(const std::wstring& text)
             MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
             return;
         }
-        audio_playback::play_wav_to_selected_async(wav, *g_state);
+        if (g_state->micBridgeEnabled.load()) {
+            if (!mic_bridge::submit_tts(wav, *g_state)) {
+                OutputDebugStringW(L"[MicBridge] Failed to submit TTS; falling back to selected playback devices.\n");
+                audio_playback::play_wav_to_selected_async(wav, *g_state);
+                return;
+            }
+            audio_playback::play_wav_to_device_async(wav, g_state->devB);
+        } else {
+            audio_playback::play_wav_to_selected_async(wav, *g_state);
+        }
     }).detach();
 }
 
@@ -87,6 +100,15 @@ static void HookToggle(AppState&) { if (g_ctrl) g_ctrl->toggle_recording(); }
 static void HookStop(AppState&)   { if (g_ctrl) g_ctrl->stop_recording(); }
 static void HookAppend(AppState&, const wchar_t* t, int n) { if (g_ctrl) g_ctrl->on_append_text(t, n); }
 static void HookBackspace(AppState&) { if (g_ctrl) g_ctrl->on_backspace(); }
+static void HookCancel(AppState&) { if (g_ctrl) g_ctrl->cancel_recording(); }
+static void HookOpenConfig(AppState& s)
+{
+    if (g_ctrl) g_ctrl->cancel_recording();
+    s.clearBuffer();
+    s.configDone.store(false);
+    win32_window::show(s);
+    win32_window::set_topmost(s, true);
+}
 static void HookExit(AppState& s) { s.exitRequested.store(true); }
 
 static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT& outResult)
@@ -94,6 +116,13 @@ static bool MainMsgHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LR
     if (msg == WM_HOTKEY && wParam == kToggleHotkeyId)
     {
         if (g_ctrl) g_ctrl->toggle_recording();
+        outResult = 0;
+        return true;
+    }
+
+    if (msg == WM_HOTKEY && wParam == kOpenConfigHotkeyId)
+    {
+        if (g_state) HookOpenConfig(*g_state);
         outResult = 0;
         return true;
     }
@@ -118,7 +147,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     constexpr const wchar_t* kTitle     = L"TTS Voice Typing";
     const int dpi = (int)GetDpiForSystem();
     const int windowW = MulDiv(760, dpi, 96);
-    const int windowH = MulDiv(520, dpi, 96);
+    const int windowH = MulDiv(680, dpi, 96);
 
     if (!win32_window::create(state, hInstance, kClassName, kTitle, 560, 320, windowW, windowH))
     {
@@ -127,9 +156,18 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         return 1;
     }
 
+    if (!overlay_window::create(state, hInstance))
+    {
+        MessageBoxW(nullptr, L"Failed to create overlay window.", L"Error", MB_ICONERROR);
+        win32_window::destroy(state, hInstance, kClassName);
+        CoUninitialize();
+        return 1;
+    }
+
     win32_window::set_msg_handler(MainMsgHandler);
 
     RefreshOutputDevices(state);
+    driver_setup::refresh_status(state);
 
     NativeUi ui;
     ui.init(state.hwnd, state);
@@ -148,6 +186,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     hcb.onStopRecording   = &HookStop;
     hcb.onAppendText      = &HookAppend;
     hcb.onBackspace       = &HookBackspace;
+    hcb.onCancelRecording = &HookCancel;
+    hcb.onOpenConfig      = &HookOpenConfig;
     hcb.onExit            = &HookExit;
 
     if (!keyboard_hook::install(state, hcb))
@@ -159,6 +199,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     if (!RegisterHotKey(state.hwnd, kToggleHotkeyId, MOD_CONTROL | MOD_NOREPEAT, VK_BACK))
     {
         OutputDebugStringW(L"[Hotkey] RegisterHotKey failed for Ctrl+Backspace; low-level hook fallback remains active.\n");
+    }
+    if (!RegisterHotKey(state.hwnd, kOpenConfigHotkeyId, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, VK_BACK))
+    {
+        OutputDebugStringW(L"[Hotkey] RegisterHotKey failed for Ctrl+Shift+Backspace; low-level hook fallback remains active.\n");
     }
     incoming_translator::start(state);
 
@@ -177,6 +221,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
             break;
 
         ctrl.tick_timeout();
+        overlay_window::tick(state);
+        mic_bridge::sync(state);
 
 
         if (!IsWindowVisible(state.hwnd))
@@ -206,6 +252,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
         else if (action == UiAction::RefreshDevices)
         {
             RefreshOutputDevices(state);
+            driver_setup::refresh_status(state);
         }
         else if (action == UiAction::OpenConfig)
         {
@@ -264,7 +311,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
                     return;
                 }
 
-                audio_playback::play_wav_to_selected_async(audio, *g_state);
+                if (g_state->micBridgeEnabled.load()) {
+                    if (mic_bridge::submit_tts(audio, *g_state))
+                        audio_playback::play_wav_to_device_async(audio, g_state->devB);
+                    else
+                        audio_playback::play_wav_to_selected_async(audio, *g_state);
+                } else {
+                    audio_playback::play_wav_to_selected_async(audio, *g_state);
+                }
             }).detach();
         }
 
@@ -275,8 +329,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
     ui.shutdown();
     incoming_translator::stop();
     UnregisterHotKey(state.hwnd, kToggleHotkeyId);
+    UnregisterHotKey(state.hwnd, kOpenConfigHotkeyId);
     keyboard_hook::uninstall();
+    mic_bridge::stop();
     audio_playback::stop_all();
+    overlay_window::destroy(hInstance);
     win32_window::destroy(state, hInstance, kClassName);
 
     CoUninitialize();

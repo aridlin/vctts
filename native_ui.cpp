@@ -1,6 +1,7 @@
 #include "native_ui.h"
 
 #include "custom_tts.h"
+#include "driver_setup.h"
 #include "tts_winrt.h"
 
 #include <windowsx.h>
@@ -196,7 +197,6 @@ UiAction NativeUi::tick()
         showingConfig_ = wantConfig;
         reset_interaction();
         SetWindowTextW(hwnd_, showingConfig_ ? L"TTS Voice Typing - Config" : L"Voice Typing");
-        if (!showingConfig_) SetFocus(hwnd_);
     }
 
     sync_model();
@@ -382,12 +382,19 @@ void NativeUi::sync_model()
     if (!state_->outDevices.empty()) {
         if (state_->devA >= (int)state_->outDevices.size()) state_->devA = 0;
         if (state_->devB >= (int)state_->outDevices.size()) state_->devB = 0;
+        if (state_->bridgeVirtualOutDev >= (int)state_->outDevices.size()) state_->bridgeVirtualOutDev = 0;
+    }
+    if (state_->micDev < 0) state_->micDev = 0;
+    if (state_->bridgeVirtualInDev < 0) state_->bridgeVirtualInDev = 0;
+    if (!state_->inDevices.empty()) {
+        if (state_->micDev >= (int)state_->inDevices.size()) state_->micDev = 0;
+        if (state_->bridgeVirtualInDev >= (int)state_->inDevices.size()) state_->bridgeVirtualInDev = 0;
     }
     if (state_->sapiVoiceIndex < 0) state_->sapiVoiceIndex = 0;
     if (!state_->sapiVoices.empty() && state_->sapiVoiceIndex >= (int)state_->sapiVoices.size())
         state_->sapiVoiceIndex = 0;
 
-    int devSig = device_vector_signature(state_->outDevices);
+    int devSig = device_vector_signature(state_->outDevices) ^ (device_vector_signature(state_->inDevices) << 1);
     int voiceSig = text_vector_signature(state_->sapiVoices);
     if (devSig != deviceSignature_ || voiceSig != voiceSignature_) {
         deviceSignature_ = devSig;
@@ -522,7 +529,9 @@ void NativeUi::paint_config(Graphics& g, const Rect& bounds)
     };
 
     std::vector<std::wstring> devices = device_names();
+    std::vector<std::wstring> inputs = input_device_names();
     const bool hasDevices = !devices.empty();
+    const bool hasInputs = !inputs.empty();
     std::wstring devA = hasDevices ? devices[state_->devA] : L"No output devices found";
     std::wstring devB = hasDevices ? devices[state_->devB] : L"No output devices found";
 
@@ -569,6 +578,39 @@ void NativeUi::paint_config(Graphics& g, const Rect& bounds)
              state_->muteIncomingApp.load());
     y += 50.0f;
 
+    label(L"Mic bridge", y);
+    checkbox(Hit::MicBridge, L"enable", rect(fieldX, y - 2.0f, 100.0f, 38.0f),
+             state_->micBridgeEnabled.load());
+    checkbox(Hit::MicMute, L"mute mic", rect(fieldX + 112.0f, y - 2.0f, 116.0f, 38.0f),
+             state_->micMuted.load());
+    std::wstring bridgeStatus = state_->driverSetup.virtualPlaybackFound && state_->driverSetup.virtualCaptureFound
+        ? L"virtual endpoints ready"
+        : L"virtual endpoints missing";
+    draw_string(g, bridgeStatus, rect(fieldX + 246.0f, y, fieldW - 246.0f, 34.0f), 13.0f,
+                state_->driverSetup.virtualPlaybackFound && state_->driverSetup.virtualCaptureFound ? success() : danger());
+    y += 42.0f;
+
+    std::wstring mic = hasInputs ? inputs[state_->micDev] : L"No input devices found";
+    std::wstring vout = hasDevices ? devices[state_->bridgeVirtualOutDev] : L"No output devices found";
+    std::wstring vin = hasInputs ? inputs[state_->bridgeVirtualInDev] : L"No input devices found";
+    dropdown(Hit::MicDevice, L"physical mic", mic, rect(fieldX, y, fieldW * 0.50f - 6.0f, kItemH), hasInputs);
+    dropdown(Hit::BridgeVirtualOut, L"virtual output", vout, rect(fieldX + fieldW * 0.50f + 6.0f, y, fieldW * 0.50f - 6.0f, kItemH), hasDevices);
+    y += kItemH + 8.0f;
+
+    dropdown(Hit::BridgeVirtualIn, L"virtual mic", vin, rect(fieldX, y, fieldW * 0.50f - 6.0f, kItemH), hasInputs);
+    button(Hit::InstallDriver, L"Install/Repair Driver", rect(fieldX + fieldW * 0.50f + 6.0f, y, 156.0f, 34.0f));
+    button(Hit::SetDefaultMic, L"Set comms mic", rect(fieldX + fieldW * 0.50f + 174.0f, y, 126.0f, 34.0f), false, hasInputs);
+    y += kItemH + 8.0f;
+
+    std::wstring gains = L"mic " + std::to_wstring((int)(state_->micGain * 100.0f)) +
+                         L"%   tts " + std::to_wstring((int)(state_->ttsGain * 100.0f)) + L"%";
+    draw_string(g, gains, rect(fieldX, y, 154.0f, 30.0f), 13.0f, muted());
+    button(Hit::MicGainDown, L"Mic -", rect(fieldX + 164.0f, y, 58.0f, 30.0f));
+    button(Hit::MicGainUp, L"Mic +", rect(fieldX + 230.0f, y, 58.0f, 30.0f));
+    button(Hit::TtsGainDown, L"TTS -", rect(fieldX + 304.0f, y, 58.0f, 30.0f));
+    button(Hit::TtsGainUp, L"TTS +", rect(fieldX + 370.0f, y, 58.0f, 30.0f));
+    y += 40.0f;
+
     std::vector<std::wstring> voices = voice_names();
     std::wstring voice = voices.empty() ? L"No voices found" : voices[state_->sapiVoiceIndex];
     label(L"SAPI voice", y);
@@ -604,7 +646,10 @@ void NativeUi::paint_config(Graphics& g, const Rect& bounds)
     button(Hit::TestTts, L"Test TTS", rect(footer.x + 240.0f, footer.y, 108.0f, 36.0f));
 
     if (dropdown_.open) {
-        std::vector<std::wstring> items = dropdown_.owner == Hit::Voice ? voices : devices;
+        std::vector<std::wstring> items =
+            (dropdown_.owner == Hit::Voice) ? voices :
+            (dropdown_.owner == Hit::MicDevice || dropdown_.owner == Hit::BridgeVirtualIn) ? inputs :
+            devices;
         Rect pop = dropdown_.rect;
         pop.y += pop.h + 6.0f;
         pop.h = std::min(7, dropdown_.itemCount) * 34.0f + 8.0f;
@@ -732,6 +777,23 @@ NativeUi::Hit NativeUi::hit_test(float x, float y) const
     if (contains(rect(fieldX + 188.0f, cy, appW, 34.0f), x, y)) return Hit::IncomingApp;
     if (contains(rect(fieldX + 188.0f + appW + 18.0f, cy - 2.0f, 126.0f, 38.0f), x, y)) return Hit::MuteIncoming;
     cy += 50.0f;
+
+    if (contains(rect(fieldX, cy - 2.0f, 100.0f, 38.0f), x, y)) return Hit::MicBridge;
+    if (contains(rect(fieldX + 112.0f, cy - 2.0f, 116.0f, 38.0f), x, y)) return Hit::MicMute;
+    cy += 42.0f;
+    if (contains(rect(fieldX, cy, fieldW * 0.50f - 6.0f, kItemH), x, y)) return Hit::MicDevice;
+    if (contains(rect(fieldX + fieldW * 0.50f + 6.0f, cy, fieldW * 0.50f - 6.0f, kItemH), x, y)) return Hit::BridgeVirtualOut;
+    cy += kItemH + 8.0f;
+    if (contains(rect(fieldX, cy, fieldW * 0.50f - 6.0f, kItemH), x, y)) return Hit::BridgeVirtualIn;
+    if (contains(rect(fieldX + fieldW * 0.50f + 6.0f, cy, 156.0f, 34.0f), x, y)) return Hit::InstallDriver;
+    if (contains(rect(fieldX + fieldW * 0.50f + 174.0f, cy, 126.0f, 34.0f), x, y)) return Hit::SetDefaultMic;
+    cy += kItemH + 8.0f;
+    if (contains(rect(fieldX + 164.0f, cy, 58.0f, 30.0f), x, y)) return Hit::MicGainDown;
+    if (contains(rect(fieldX + 230.0f, cy, 58.0f, 30.0f), x, y)) return Hit::MicGainUp;
+    if (contains(rect(fieldX + 304.0f, cy, 58.0f, 30.0f), x, y)) return Hit::TtsGainDown;
+    if (contains(rect(fieldX + 370.0f, cy, 58.0f, 30.0f), x, y)) return Hit::TtsGainUp;
+    cy += 40.0f;
+
     if (contains(rect(fieldX, cy, fieldW, kItemH), x, y)) return Hit::Voice;
     cy += kItemH + kGap;
 
@@ -808,6 +870,68 @@ void NativeUi::activate_hit(Hit hit)
         close_dropdown();
         state_->muteIncomingApp.store(!state_->muteIncomingApp.load());
         break;
+    case Hit::MicBridge:
+        close_dropdown();
+        state_->micBridgeEnabled.store(!state_->micBridgeEnabled.load());
+        break;
+    case Hit::MicDevice:
+        if (dropdown_.open && dropdown_.owner == Hit::MicDevice) {
+            close_dropdown();
+        } else if (!state_->inDevices.empty()) {
+            open_dropdown(Hit::MicDevice, rect(0, 0, 0, 0), (int)state_->inDevices.size(), state_->micDev);
+        }
+        break;
+    case Hit::BridgeVirtualOut:
+        if (dropdown_.open && dropdown_.owner == Hit::BridgeVirtualOut) {
+            close_dropdown();
+        } else if (!state_->outDevices.empty()) {
+            open_dropdown(Hit::BridgeVirtualOut, rect(0, 0, 0, 0), (int)state_->outDevices.size(), state_->bridgeVirtualOutDev);
+        }
+        break;
+    case Hit::BridgeVirtualIn:
+        if (dropdown_.open && dropdown_.owner == Hit::BridgeVirtualIn) {
+            close_dropdown();
+        } else if (!state_->inDevices.empty()) {
+            open_dropdown(Hit::BridgeVirtualIn, rect(0, 0, 0, 0), (int)state_->inDevices.size(), state_->bridgeVirtualInDev);
+        }
+        break;
+    case Hit::MicMute:
+        close_dropdown();
+        state_->micMuted.store(!state_->micMuted.load());
+        break;
+    case Hit::MicGainDown:
+        close_dropdown();
+        state_->micGain = std::max(0.0f, state_->micGain - 0.1f);
+        break;
+    case Hit::MicGainUp:
+        close_dropdown();
+        state_->micGain = std::min(3.0f, state_->micGain + 0.1f);
+        break;
+    case Hit::TtsGainDown:
+        close_dropdown();
+        state_->ttsGain = std::max(0.0f, state_->ttsGain - 0.1f);
+        break;
+    case Hit::TtsGainUp:
+        close_dropdown();
+        state_->ttsGain = std::min(3.0f, state_->ttsGain + 0.1f);
+        break;
+    case Hit::InstallDriver:
+        close_dropdown();
+        if (MessageBoxW(hwnd_, L"Install or repair the bundled virtual audio driver? This will ask for administrator permission.",
+                        L"Mic Bridge", MB_YESNO | MB_ICONQUESTION) == IDYES) {
+            bool ok = driver_setup::install_or_repair(hwnd_);
+            MessageBoxW(hwnd_, ok ? L"Driver setup finished. Press Refresh devices if endpoints do not appear." :
+                                    L"Driver setup could not start or did not complete successfully.",
+                        L"Mic Bridge", ok ? MB_OK | MB_ICONINFORMATION : MB_OK | MB_ICONWARNING);
+            driver_setup::refresh_status(*state_);
+        }
+        break;
+    case Hit::SetDefaultMic:
+        close_dropdown();
+        if (MessageBoxW(hwnd_, L"Set the selected virtual microphone as the Windows communications microphone?",
+                        L"Mic Bridge", MB_YESNO | MB_ICONQUESTION) == IDYES)
+            driver_setup::set_default_communications_capture(*state_, hwnd_);
+        break;
     case Hit::Voice:
         if (dropdown_.open && dropdown_.owner == Hit::Voice) {
             close_dropdown();
@@ -846,7 +970,8 @@ void NativeUi::activate_hit(Hit hit)
     }
 
     if (dropdown_.open && dropdown_.owner == hit &&
-        (hit == Hit::DeviceA || hit == Hit::DeviceB || hit == Hit::Voice)) {
+        (hit == Hit::DeviceA || hit == Hit::DeviceB || hit == Hit::MicDevice ||
+         hit == Hit::BridgeVirtualOut || hit == Hit::BridgeVirtualIn || hit == Hit::Voice)) {
         RECT cr{};
         GetClientRect(hwnd_, &cr);
         Rect bounds = rect(0, 0,
@@ -859,8 +984,17 @@ void NativeUi::activate_hit(Hit hit)
         const float fieldW = card.w - 40.0f - labelW;
         float cy = card.y + 22.0f;
         if (hit == Hit::DeviceB) cy += kItemH + kGap;
-        if (hit == Hit::Voice) cy += (kItemH + kGap) * 2.0f + 16.0f + 48.0f + 50.0f + 50.0f;
-        dropdown_.rect = rect(fieldX, cy, fieldW, kItemH);
+        if (hit == Hit::MicDevice || hit == Hit::BridgeVirtualOut || hit == Hit::BridgeVirtualIn || hit == Hit::Voice)
+            cy += (kItemH + kGap) * 2.0f + 16.0f + 48.0f + 50.0f + 50.0f;
+        if (hit == Hit::MicDevice || hit == Hit::BridgeVirtualOut) cy += 42.0f;
+        if (hit == Hit::BridgeVirtualIn) cy += 42.0f + kItemH + 8.0f;
+        if (hit == Hit::Voice) cy += 42.0f + (kItemH + 8.0f) * 2.0f + 40.0f;
+        if (hit == Hit::MicDevice || hit == Hit::BridgeVirtualIn)
+            dropdown_.rect = rect(fieldX, cy, fieldW * 0.50f - 6.0f, kItemH);
+        else if (hit == Hit::BridgeVirtualOut)
+            dropdown_.rect = rect(fieldX + fieldW * 0.50f + 6.0f, cy, fieldW * 0.50f - 6.0f, kItemH);
+        else
+            dropdown_.rect = rect(fieldX, cy, fieldW, kItemH);
     }
 }
 
@@ -889,6 +1023,9 @@ void NativeUi::commit_dropdown_item(int index)
 
     if (dropdown_.owner == Hit::DeviceA) state_->devA = index;
     else if (dropdown_.owner == Hit::DeviceB) state_->devB = index;
+    else if (dropdown_.owner == Hit::MicDevice) state_->micDev = index;
+    else if (dropdown_.owner == Hit::BridgeVirtualOut) state_->bridgeVirtualOutDev = index;
+    else if (dropdown_.owner == Hit::BridgeVirtualIn) state_->bridgeVirtualInDev = index;
     else if (dropdown_.owner == Hit::Voice) {
         state_->sapiVoiceIndex = index;
         tts_winrt::set_voice_index(index);
@@ -973,6 +1110,16 @@ std::vector<std::wstring> NativeUi::device_names() const
     if (!state_) return out;
     out.reserve(state_->outDevices.size());
     for (const AudioDevice& dev : state_->outDevices)
+        out.push_back(dev.name);
+    return out;
+}
+
+std::vector<std::wstring> NativeUi::input_device_names() const
+{
+    std::vector<std::wstring> out;
+    if (!state_) return out;
+    out.reserve(state_->inDevices.size());
+    for (const AudioDevice& dev : state_->inDevices)
         out.push_back(dev.name);
     return out;
 }

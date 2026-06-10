@@ -55,6 +55,17 @@ private:
         IncomingMode,
         IncomingApp,
         MuteIncoming,
+        MicBridge,
+        MicDevice,
+        BridgeVirtualOut,
+        BridgeVirtualIn,
+        MicMute,
+        MicGainDown,
+        MicGainUp,
+        TtsGainDown,
+        TtsGainUp,
+        InstallDriver,
+        SetDefaultMic,
         Voice,
         CustomCommand,
         Start,
@@ -119,5 +130,6 @@ private:
     void handle_keydown(WPARAM key);
 
     std::vector<std::wstring> device_names() const;
+    std::vector<std::wstring> input_device_names() const;
     std::vector<std::wstring> voice_names() const;
 };

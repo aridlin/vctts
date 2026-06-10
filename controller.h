@@ -26,12 +26,6 @@ struct Controller {
         s.clearBuffer();
         s.lastInput = std::chrono::steady_clock::now();
         s.recording.store(true);
-
-        win32_window::show(s);
-        win32_window::set_topmost(s, true);
-
-        // ✅ THIS is the important change
-        win32_window::force_foreground(s.hwnd);
     }
 
     void stop_recording()
@@ -39,13 +33,20 @@ struct Controller {
         if (!s.recording.load()) return;
 
         s.recording.store(false);
-
-        win32_window::hide(s);
         win32_window::restore_foreground(s);
 
         std::wstring text = s.takeBufferAndClear();
         if (cb.onCommittedText && !text.empty())
             cb.onCommittedText(text);
+    }
+
+    void cancel_recording()
+    {
+        if (!s.recording.load()) return;
+
+        s.recording.store(false);
+        s.clearBuffer();
+        win32_window::restore_foreground(s);
     }
 
     void toggle_recording()
@@ -89,4 +90,3 @@ struct Controller {
         s.backspace();
     }
 };
-

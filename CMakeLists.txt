@@ -18,8 +18,11 @@ endif()
 add_executable(vctts WIN32
     main.cpp
     win32_window.cpp
+    overlay_window.cpp
     native_ui.cpp
     keyboard_hook.cpp
+    driver_setup.cpp
+    mic_bridge.cpp
     app_audio_control.cpp
     incoming_translator.cpp
     tts_winrt.cpp
@@ -72,11 +75,21 @@ target_link_libraries(vctts PRIVATE
     shell32
     uuid
     winmm
+    advapi32
     propsys
     avrt
     winhttp
+    urlmon
     runtimeobject
 )
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/drivers")
+    add_custom_command(TARGET vctts POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_SOURCE_DIR}/drivers"
+                "$<TARGET_FILE_DIR:vctts>/drivers"
+    )
+endif()
 
 # -------------------------
 # Tests
@@ -97,4 +110,17 @@ if(BUILD_TESTS)
         target_link_libraries(test_app_state PRIVATE pthread)
     endif()
     add_test(NAME AppStateTest COMMAND test_app_state)
+
+    add_executable(test_driver_setup tests/test_driver_setup.cpp driver_setup.cpp)
+    target_include_directories(test_driver_setup PRIVATE
+        ${CMAKE_SOURCE_DIR}
+    )
+    target_compile_definitions(test_driver_setup PRIVATE
+        UNICODE
+        _UNICODE
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+    )
+    target_link_libraries(test_driver_setup PRIVATE shell32 urlmon advapi32 propsys ole32)
+    add_test(NAME DriverSetupTest COMMAND test_driver_setup)
 endif()
