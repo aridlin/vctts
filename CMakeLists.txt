@@ -25,6 +25,8 @@ add_executable(vctts WIN32
     mic_bridge.cpp
     app_audio_control.cpp
     incoming_translator.cpp
+    tts_phonomenal.cpp
+    extern/phonomenal/cpp/src/splicer.cpp
     tts_winrt.cpp
     tts_keyless.cpp
     translator.cpp
@@ -40,6 +42,7 @@ add_executable(vctts WIN32
 # -------------------------
 target_include_directories(vctts PRIVATE
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/extern/phonomenal/cpp/include
     ${CMAKE_SOURCE_DIR}/extern/miniaudio
 )
 
@@ -64,6 +67,9 @@ target_compile_definitions(vctts PRIVATE
 # -------------------------
 # Link libraries
 # -------------------------
+if(MSVC)
+    target_compile_options(vctts PRIVATE /utf-8)
+endif()
 target_link_libraries(vctts PRIVATE
     user32
     gdi32
@@ -81,6 +87,7 @@ target_link_libraries(vctts PRIVATE
     winhttp
     urlmon
     runtimeobject
+    comdlg32
 )
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/drivers")
@@ -97,6 +104,16 @@ endif()
 option(BUILD_TESTS "Build tests" OFF)
 if(BUILD_TESTS)
     enable_testing()
+    add_executable(test_phonomenal tests/test_phonomenal.cpp tts_phonomenal.cpp extern/phonomenal/cpp/src/splicer.cpp)
+    target_include_directories(test_phonomenal PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/extern/phonomenal/cpp/include)
+    target_compile_definitions(test_phonomenal PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_link_libraries(test_phonomenal PRIVATE ${CMAKE_DL_LIBS})
+    if(MSVC)
+        target_compile_options(test_phonomenal PRIVATE /UNDEBUG /utf-8)
+    else()
+        target_compile_options(test_phonomenal PRIVATE -UNDEBUG)
+    endif()
+    add_test(NAME PhonomenalTest COMMAND test_phonomenal)
     add_executable(test_app_state tests/test_app_state.cpp)
     target_include_directories(test_app_state PRIVATE
         ${CMAKE_SOURCE_DIR}

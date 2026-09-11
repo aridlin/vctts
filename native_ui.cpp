@@ -3,6 +3,8 @@
 #include "custom_tts.h"
 #include "driver_setup.h"
 #include "tts_winrt.h"
+#include "tts_phonomenal.h"
+#include <commdlg.h>
 
 #include <windowsx.h>
 #include <objidl.h>
@@ -375,6 +377,7 @@ void NativeUi::sync_model()
     if (state_->sapiVoices.empty()) {
         state_->sapiVoices = tts_winrt::list_voices();
         state_->sapiVoices.push_back(L"Custom");
+        state_->sapiVoices.push_back(L"Phonomenal — choose voice pack…");
     }
 
     if (state_->devA < 0) state_->devA = 0;
@@ -1027,8 +1030,22 @@ void NativeUi::commit_dropdown_item(int index)
     else if (dropdown_.owner == Hit::BridgeVirtualOut) state_->bridgeVirtualOutDev = index;
     else if (dropdown_.owner == Hit::BridgeVirtualIn) state_->bridgeVirtualInDev = index;
     else if (dropdown_.owner == Hit::Voice) {
-        state_->sapiVoiceIndex = index;
-        tts_winrt::set_voice_index(index);
+        if(state_->sapiVoices[index].starts_with(L"Phonomenal")){
+            wchar_t filename[32768]{};const auto previous=tts_phonomenal::selected_path().wstring();
+            if(previous.size()<std::size(filename))std::copy(previous.begin(),previous.end(),filename);
+            OPENFILENAMEW picker{};picker.lStructSize=sizeof(picker);picker.hwndOwner=hwnd_;
+            picker.lpstrFile=filename;picker.nMaxFile=static_cast<DWORD>(std::size(filename));
+            picker.lpstrFilter=L"Phonomenal voice packs (*.vcpack;*.phbank)\0*.vcpack;*.phbank\0All files\0*.*\0";
+            picker.lpstrTitle=L"Choose a Phonomenal voice pack";picker.Flags=OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR|OFN_EXPLORER;
+            close_dropdown();
+            if(!GetOpenFileNameW(&picker))return;
+            tts_phonomenal::select(std::filesystem::path(filename));
+            state_->sapiVoices[index]=L"Phonomenal — "+std::filesystem::path(filename).filename().wstring();
+            state_->sapiVoiceIndex=index;
+        }else{
+            tts_phonomenal::disable();state_->sapiVoiceIndex=index;
+            if(state_->sapiVoices[index]!=L"Custom")tts_winrt::set_voice_index(index);
+        }
     }
 
     close_dropdown();
