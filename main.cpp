@@ -11,6 +11,7 @@
 #include "mic_bridge.h"
 #include "tts_keyless.h"
 #include "tts_winrt.h"
+#include "tts_phonomenal.h"
 #include "translator.h"
 #include "custom_tts.h"
 #include <windows.h>
@@ -35,8 +36,20 @@ static std::wstring SanitizeForSapi(const std::wstring& in)
     return out;
 }
 
+static thread_local std::wstring synthesis_error;
 static std::vector<std::uint8_t> SpeakWithFallback(const std::wstring& text, bool preferKeyless, const std::string& voiceLanguage = {})
 {
+    synthesis_error.clear();
+    if(tts_phonomenal::enabled()){
+        auto wav=tts_phonomenal::speak(custom_tts::WideToUtf8(text));
+        if(wav.empty()){
+            const auto& error=tts_phonomenal::last_error();
+            int count=MultiByteToWideChar(CP_UTF8,0,error.data(),static_cast<int>(error.size()),nullptr,0);
+            synthesis_error.resize(count);MultiByteToWideChar(CP_UTF8,0,error.data(),static_cast<int>(error.size()),synthesis_error.data(),count);
+            synthesis_error=L"Phonomenal: "+synthesis_error;
+        }
+        return wav;
+    }
     if (g_state &&
         g_state->sapiVoiceIndex >= 0 &&
         g_state->sapiVoiceIndex < (int)g_state->sapiVoices.size() &&
@@ -80,7 +93,7 @@ static void OnCommittedText(const std::wstring& text)
 
         auto wav = SpeakWithFallback(textToSpeak, preferKeyless, voiceLang);
         if (wav.empty()) {
-            MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer.", L"TTS Error", MB_ICONERROR);
+            MessageBoxW(nullptr, synthesis_error.empty()?L"TTS produced an invalid/empty audio buffer.":synthesis_error.c_str(), L"TTS Error", MB_ICONERROR);
             return;
         }
         if (g_state->micBridgeEnabled.load()) {
@@ -307,7 +320,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int)
                 }
 
                 if (audio.empty()) {
-                    MessageBoxW(nullptr, L"TTS produced an invalid/empty audio buffer. Check DebugView output.", L"TTS Error", MB_ICONERROR);
+                    MessageBoxW(nullptr, synthesis_error.empty()?L"TTS produced an invalid/empty audio buffer. Check DebugView output.":synthesis_error.c_str(), L"TTS Error", MB_ICONERROR);
                     return;
                 }
 

@@ -1,10 +1,14 @@
 name: Build (Windows)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master", "main" ]
   pull_request:
     branches: [ "master", "main" ]
+
+permissions:
+  contents: write
 
 env:
   BUILD_TYPE: Release
@@ -35,8 +39,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tts_overlay_windows
-          path: build/${{ env.BUILD_TYPE }}/tts_overlay.exe
+          name: vctts-windows
+          path: build/${{ env.BUILD_TYPE }}/vctts.exe
 
       - name: Create Release
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
@@ -44,6 +48,6 @@ jobs:
         with:
           tag_name: latest
           name: Latest Release
-          files: build/${{ env.BUILD_TYPE }}/tts_overlay.exe
+          files: build/${{ env.BUILD_TYPE }}/vctts.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
