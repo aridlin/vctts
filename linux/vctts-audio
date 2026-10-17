@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""Create only VCTTS's virtual audio endpoints; preserve default devices."""
+import json, subprocess
+def run(*args): return subprocess.check_output(['pactl',*args],text=True).strip()
+sinks=json.loads(run('-f','json','list','sinks'))
+if not any(s['name']=='vctts_bus' for s in sinks):
+    run('load-module','module-null-sink','sink_name=vctts_bus','sink_properties=device.description=VCTTS_Chat_Audio')
+sources=json.loads(run('-f','json','list','sources'))
+if not any(s['name']=='vctts_microphone' for s in sources):
+    run('load-module','module-remap-source','master=vctts_bus.monitor','source_name=vctts_microphone','source_properties=device.description=VCTTS_Virtual_Microphone')
+print('VCTTS Chat Audio output and VCTTS Virtual Microphone ready; default devices preserved.')

@@ -1,6 +1,6 @@
 # VOICECHAT TTS
 
-A lightweight Windows overlay that lets you type a short message and play it over **two output devices at once**.  
+A lightweight Windows and Linux overlay that lets you type a short message and play it over **two output devices at once**.
 Designed for games and voice chat where you need **fast TTS** without touching your microphone.
 
 ---
@@ -21,7 +21,20 @@ Designed for games and voice chat where you need **fast TTS** without touching y
 
 ---
 
-## Requirements
+## Linux
+
+The native Linux build provides a Wayland layer-shell overlay, a system tray,
+compact settings with an Advanced button, global shortcuts, dual listening
+outputs and a dedicated virtual-microphone route for Discord and other voice
+chat apps. Headphone selection does not disconnect voice-chat audio.
+
+Offline Microsoft Zira Pro and Paulina voices run through a persistent Windows
+speech worker under Wine. eSpeak NG, Phonomenal voice packs, custom programs and
+explicit online Brian are also supported.
+
+See [Linux build, installation, voices and usage](linux/README.md).
+
+## Windows requirements
 
 - **Windows 10 / 11**
 - **Visual Studio 2022** or newer (Desktop C++ workload)
