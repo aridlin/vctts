@@ -1,4 +1,11 @@
 #include "tts_phonomenal.h"
+#include "soundboard.h"
+#include <QListWidget>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QTreeWidget>
+#include <QKeyEvent>
+#include <QStringDecoder>
 #include <KGlobalAccel>
 #include <KWindowSystem>
 #include <LayerShellQt/Window>
@@ -95,6 +102,8 @@ class Window : public QWidget {
   QFutureWatcher<Speech> synthesis;
   QDialog quick;
   QLineEdit *quickText;
+  Soundboard soundboard;
+  QListWidget *suggestions;
   QString bridgeModule;
   quint64 generation = 0;
   bool cancelled = false;
@@ -102,6 +111,47 @@ class Window : public QWidget {
   std::shared_ptr<std::atomic_bool> workerCancel;
 
 public:
+  void soundboardTest() {
+    auto file = qEnvironmentVariable("VCTTS_TEST_SOUND");
+    if (!soundboard.add(file)) { qCritical() << soundboard.error; QCoreApplication::exit(5); return; }
+    // Isolated test library contains one generated tone.
+    if (!soundboard.load()) { QCoreApplication::exit(5); return; }
+    QString name = soundboard.entries.firstKey();
+    toggleInput(); quickText->setText("/" + name.left(4));
+    QTimer::singleShot(300, this, [this, name, file] {
+      if (!suggestions->isVisible() || suggestions->count() < 1 || inputTimeout.isActive()) {
+        qCritical("FAIL: slash autocomplete / idle protection"); QCoreApplication::exit(5); return;
+      }
+      QTest::keyClick(quickText, Qt::Key_Down);
+      QTest::keyClick(quickText, Qt::Key_Tab);
+      if (quickText->text() != "/" + name) {
+        qCritical("FAIL: Tab completion"); QCoreApplication::exit(5); return;
+      }
+      auto screenshot = qEnvironmentVariable("VCTTS_TEST_SCREENSHOT");
+      if (!screenshot.isEmpty()) quick.grab().save(screenshot);
+      QTest::keyClick(quickText, Qt::Key_Return);
+      if (quick.isVisible() || players[0].source().toLocalFile() != soundboard.entries[name] ||
+          players[2].source().toLocalFile() != soundboard.entries[name]) {
+        qCritical("FAIL: command did not route to headphones and mic"); QCoreApplication::exit(5); return;
+      }
+      QTimer::singleShot(2000, this, [this] {
+        if (players[0].playbackState() != QMediaPlayer::PlayingState ||
+            players[2].playbackState() != QMediaPlayer::PlayingState) {
+          qCritical("FAIL: dual output playback"); QCoreApplication::exit(5); return;
+        }
+        speak("/stop");
+        for (auto &player : players) if (player.playbackState() != QMediaPlayer::StoppedState) {
+          qCritical("FAIL: stop"); QCoreApplication::exit(5); return;
+        }
+        speak("/missing-command");
+        if (!status->text().startsWith("Unknown sound")) {
+          qCritical("FAIL: unknown command handling"); QCoreApplication::exit(5); return;
+        }
+        qInfo("PASS: sound import, slash suggestions, Tab, Enter, headphones + mic playback, stop, unknown command");
+        QCoreApplication::exit(0);
+      });
+    });
+  }
   void cancellationTest() {
     custom->setText("/usr/bin/sleep 10");
     voice->setCurrentIndex(voice->findData("custom"));
@@ -184,12 +234,13 @@ public:
       hide();
       QTimer::singleShot(150, this, [this] { toggleInput(); });
     });
-    QTimer::singleShot(1000, this, [this] {
+    QTimer::singleShot(360, this, [this] {
       auto fail = [](const char *message) {
         qCritical("FAIL: %s", message);
         QCoreApplication::exit(5);
       };
-      if (!quick.isVisible() || !quickText->hasFocus()) {
+      if (!QTest::qWaitForWindowActive(&quick, 2000) || !quickText->hasFocus()) {
+        qWarning() << "Overlay visible" << quick.isVisible() << "active" << quick.isActiveWindow() << "focus" << QApplication::focusWidget() << "input" << quickText;
         fail("overlay did not receive keyboard focus");
         return;
       }
@@ -199,6 +250,7 @@ public:
         fail("Wayland overlay layer missing");
         return;
       }
+      quickText->clear();
       QInputMethodEvent input;
       input.setCommitString(
           QString::fromUtf8("Zażółć gęślą jaźń — VCTTS overlay"));
@@ -373,7 +425,7 @@ public:
     second = new QComboBox;
     layout->addRow("Listen on", first);
     layout->addRow("Extra output", second);
-    sendChat = new QCheckBox("Send speech to Discord / virtual microphone");
+    sendChat = new QCheckBox("Send audio to Discord / virtual microphone");
     sendChat->setChecked(settings.value("sendChat", true).toBool());
     layout->addRow(sendChat);
     connect(sendChat, &QCheckBox::toggled, this,
@@ -514,18 +566,34 @@ public:
     auto heading =
         new QLabel("<b style='color:#91a6ff'>VOICE TTS</b> &nbsp; <span "
                    "style='color:#a4fdcc'>Recording</span> &nbsp; <span "
-                   "style='color:#aebbd0'>Enter speak · Esc cancel</span>");
+                   "style='color:#aebbd0'>Enter play/speak · Esc cancel</span>");
     panelLayout->addWidget(heading);
     quickText = new QLineEdit;
     quickText->setObjectName("overlayInput");
-    quickText->setPlaceholderText("Start typing…");
+    quickText->setPlaceholderText("Type speech or /soundname…");
     quickText->setMaxLength(4000);
     panelLayout->addWidget(quickText);
+    suggestions = new QListWidget;
+    suggestions->setFocusPolicy(Qt::NoFocus);
+    suggestions->setStyleSheet("QListWidget {background:#171c26;color:#ecf1ff;border:1px solid #56637c;border-radius:7px;} QListWidget::item {padding:6px;} QListWidget::item:selected {background:#354878;color:white;}");
+    suggestions->setMaximumHeight(160);
+    suggestions->hide();
+    panelLayout->addWidget(suggestions);
+    quickText->installEventFilter(this);
+    soundboard.load();
+    connect(quickText, &QLineEdit::textChanged, this, [this] { updateSuggestions(); });
+    connect(suggestions, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+      quickText->setText(item->text()); quickText->setFocus();
+    });
+    auto soundsButton = new QPushButton("Soundboard — add / rename / import…");
+    layout->addRow(soundsButton);
+    connect(soundsButton, &QPushButton::clicked, this, [this] { manageSounds(); });
     quick.setStyleSheet(
         "#overlayPanel {background:rgba(17,19,24,235);border:1px solid "
         "#56637c;border-radius:18px;} #overlayInput "
         "{background:transparent;border:0;color:#f7faff;font-size:22px;padding:"
         "5px 0;} QLabel {color:#d0d9e9;font-size:13px;}");
+    quick.setMinimumWidth(720);
     quick.resize(720, 128);
     playbackOverlay.setAttribute(Qt::WA_TranslucentBackground);
     playbackOverlay.setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -606,7 +674,7 @@ public:
     simpleLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     const QSet<QWidget *> basic = {intro,  voice,    first, sendChat,
                                    bridge, micMuted, text,  speakButton,
-                                   stop,   status,   done};
+                                   stop,   status,   done, soundsButton};
     while (layout->rowCount()) {
       auto row = layout->takeRow(0);
       QWidget *field = row.fieldItem ? row.fieldItem->widget() : nullptr;
@@ -790,8 +858,124 @@ public:
             });
     return action;
   }
+  void updateSuggestions() {
+    suggestions->clear();
+    const auto query = quickText->text().toLower();
+    if (query.startsWith('/')) {
+      QStringList commands{"/stop"};
+      for (auto it = soundboard.entries.cbegin(); it != soundboard.entries.cend(); ++it)
+        commands << "/" + it.key();
+      for (const auto &command : commands)
+        if (command.contains(query.mid(1))) suggestions->addItem(command);
+    }
+    suggestions->setFixedHeight(qMin(6, suggestions->count()) * 32 + 8);
+    suggestions->setVisible(suggestions->count() > 0);
+    if (suggestions->count()) suggestions->setCurrentRow(0);
+    quick.adjustSize();
+    if (quick.isVisible()) positionOverlay(quick);
+  }
+  bool eventFilter(QObject *object, QEvent *event) override {
+    if (object == quickText && event->type() == QEvent::KeyPress) {
+      auto key = static_cast<QKeyEvent *>(event)->key();
+      if (suggestions->isVisible() && suggestions->count()) {
+        if (key == Qt::Key_Down || key == Qt::Key_Up) {
+          int row = suggestions->currentRow() + (key == Qt::Key_Down ? 1 : -1);
+          suggestions->setCurrentRow((row + suggestions->count()) % suggestions->count());
+          restartInputTimeout(); return true;
+        }
+        if ((key == Qt::Key_Return || key == Qt::Key_Enter) &&
+            !soundboard.entries.contains(quickText->text().mid(1).toLower()) &&
+            quickText->text().toLower() != "/stop") {
+          quickText->setText(suggestions->currentItem()->text());
+          commitInput(); return true;
+        }
+        if (key == Qt::Key_Tab) {
+          quickText->setText(suggestions->currentItem()->text()); return true;
+        }
+      }
+    }
+    return QWidget::eventFilter(object, event);
+  }
+  void manageSounds() {
+    QDialog dialog(this);
+    dialog.setWindowTitle("VCTTS Soundboard"); dialog.resize(820, 480);
+    auto layout = new QVBoxLayout(&dialog);
+    layout->addWidget(new QLabel("Type / in the overlay to search. ↑/↓ select, Tab completes, Enter plays. /stop stops playback."));
+    auto list = new QTreeWidget;
+    list->setHeaderLabels({"Command", "Audio file"}); list->setColumnWidth(0, 260);
+    layout->addWidget(list);
+    auto refresh = [&] {
+      list->clear();
+      for (auto it = soundboard.entries.cbegin(); it != soundboard.entries.cend(); ++it)
+        new QTreeWidgetItem(list, {"/" + it.key(), it.value()});
+      updateSuggestions();
+    };
+    auto buttons = new QHBoxLayout; layout->addLayout(buttons);
+    auto button = [&](QString label, auto callback) {
+      auto b = new QPushButton(label); buttons->addWidget(b);
+      connect(b, &QPushButton::clicked, &dialog, callback);
+    };
+    button("Add audio…", [&] {
+      auto files = QFileDialog::getOpenFileNames(&dialog, "Add sounds / songs", {}, "Audio (*.mp3 *.wav *.ogg *.flac *.m4a *.opus *.aac);;All files (*)");
+      for (const auto &file : files)
+        if (!soundboard.add(file)) QMessageBox::warning(&dialog, "Soundboard", soundboard.error);
+      refresh();
+    });
+    button("Import EXP JSON…", [&] {
+      auto path = QFileDialog::getOpenFileName(&dialog, "EXP soundboard JSON", {}, "JSON (*.json)");
+      if (path.isEmpty()) return;
+      QFile file(path);
+      if (!file.open(QIODevice::ReadOnly)) { QMessageBox::warning(&dialog, "Import", file.errorString()); return; }
+      auto bytes = file.readAll();
+      QStringDecoder utf8(QStringDecoder::Utf8);
+      QString decoded = utf8.decode(bytes);
+      if (utf8.hasError()) {
+        QStringDecoder legacy("Windows-1252");
+        if (!legacy.isValid()) { QMessageBox::warning(&dialog, "Import", "Convert legacy EXP JSON to UTF-8 first."); return; }
+        decoded = legacy.decode(bytes);
+      }
+      auto doc = QJsonDocument::fromJson(decoded.toUtf8());
+      if (!doc.object()["soundboardEntries"].isArray()) {
+        QMessageBox::warning(&dialog, "Import", "Expected EXP JSON containing a soundboardEntries array."); return;
+      }
+      QStringList missing; int added = 0;
+      for (auto value : doc.object()["soundboardEntries"].toArray()) {
+        QString original = value.toObject()["file"].toString();
+        QString source = original; source.replace('\\', '/');
+        if (source.size() > 2 && source[1] == ':') {
+          QString drive = source.left(1).toUpper();
+          source = "/mnt/Windows-" + drive + "/" + source.mid(3);
+        } else if (QFileInfo(source).isRelative()) source = QFileInfo(path).dir().filePath(source);
+        if (soundboard.add(source)) ++added; else missing << original;
+      }
+      refresh();
+      QMessageBox::information(&dialog, "Import", QString("Recovered %1 entries. Missing: %2\n%3").arg(added).arg(missing.size()).arg(missing.join('\n')));
+    });
+    button("Rename…", [&] {
+      auto item = list->currentItem(); if (!item) return;
+      auto old = item->text(0).mid(1); bool ok;
+      auto name = Soundboard::command(QInputDialog::getText(&dialog, "Command", "Slash command", QLineEdit::Normal, old, &ok));
+      if (!ok || name == old) return;
+      if (name.isEmpty() || name == "stop" || soundboard.entries.contains(name)) {
+        QMessageBox::warning(&dialog, "Command", "Choose a unique name; /stop is reserved."); return;
+      }
+      soundboard.entries[name] = soundboard.entries.take(old);
+      if (!soundboard.save()) QMessageBox::warning(&dialog, "Save", soundboard.error);
+      refresh();
+    });
+    button("Play", [&] { if (list->currentItem()) speak(list->currentItem()->text(0)); });
+    button("Stop", [&] { stopSpeech(); });
+    button("Remove", [&] {
+      if (!list->currentItem()) return;
+      soundboard.entries.remove(list->currentItem()->text(0).mid(1));
+      if (!soundboard.save()) QMessageBox::warning(&dialog, "Save", soundboard.error);
+      refresh();
+    });
+    refresh(); dialog.exec();
+  }
   void restartInputTimeout() {
     int seconds = settings.value("timeout", 30).toInt();
+    if (quickText->text().startsWith('/')) { inputTimeout.stop(); return; }
     if (seconds > 0)
       inputTimeout.start(seconds * 1000);
     else
@@ -913,6 +1097,19 @@ public:
   void speak(const QString &input, bool translated = false) {
     if (input.trimmed().isEmpty())
       return;
+    if (input.trimmed().startsWith('/')) {
+      const auto command = input.trimmed().mid(1).toLower();
+      stopSpeech();
+      if (command == "stop") { status->setText("Stopped"); return; }
+      const auto file = soundboard.entries.value(command);
+      if (file.isEmpty() || !QFileInfo::exists(file)) {
+        status->setText(file.isEmpty() ? "Unknown sound command — type / to search" : "Audio file missing: " + file);
+        showProgress(status->text());
+        QTimer::singleShot(5000, &playbackOverlay, &QWidget::hide); return;
+      }
+      currentMessage = "/" + command;
+      playFile(file); return;
+    }
     if (synthesis.isRunning()) {
       stopSpeech();
       pendingMessage = input;
@@ -1102,6 +1299,9 @@ public:
       return;
     }
     output.close();
+    playFile(file);
+  }
+  void playFile(const QString &file) {
     outputs[0].setDevice(device(first->currentData().toByteArray()));
     players[0].setSource(QUrl::fromLocalFile(file));
     players[0].play();
@@ -1138,9 +1338,9 @@ public:
       }
     }
     status->setText(sendChat->isChecked()
-                        ? "Playing · speech sent to VCTTS Virtual Microphone"
+                        ? "Playing · audio sent to VCTTS Virtual Microphone"
                         : "Playing · virtual microphone disabled");
-    showProgress("Speaking · " + currentMessage.left(180));
+    showProgress((currentMessage.startsWith('/') ? "Soundboard · " : "Speaking · ") + currentMessage.left(180));
     history.removeAll(currentMessage);
     history.prepend(currentMessage);
     while (history.size() > 10)
@@ -1232,7 +1432,9 @@ int main(int argc, char **argv) {
     window.showSettings();
     socket->deleteLater();
   });
-  if (app.arguments().contains("--test-cancel"))
+  if (app.arguments().contains("--test-soundboard"))
+    QTimer::singleShot(1000, &window, [&] { window.soundboardTest(); });
+  else if (app.arguments().contains("--test-cancel"))
     QTimer::singleShot(500, &window, [&] { window.cancellationTest(); });
   else if (app.arguments().contains("--test-overlay"))
     QTimer::singleShot(500, &window, [&] { window.overlayTest(); });

@@ -120,3 +120,33 @@ Microsoft runtime, Zira Pro and Paulina in VCTTS's private prefix and lists the
 available voices. Review Microsoft's package license terms before installation.
 It refuses to overwrite an existing Wine prefix. Restart VCTTS after setup,
 then choose Microsoft Zira Pro or Microsoft Paulina in the voice picker.
+
+## Soundboard
+
+Type `/` in the quick overlay to search local songs and sounds by name.
+Use Up/Down to select, Tab to complete, and Enter to play the exact command
+(or the selected suggestion when the typed command is incomplete). `/stop`
+stops all playback. Slash commands never go to TTS or translation, including
+unknown commands. Idle submission is disabled while browsing slash commands.
+
+The Soundboard button in the compact settings adds audio, renames commands,
+removes entries, previews playback, and imports EXP Soundboard JSON
+(`soundboardEntries` with `file` fields; UTF-8 or Windows-1252). Windows paths are resolved
+against `/mnt/Windows-C`, `/mnt/Windows-D`, etc. Missing files are reported.
+Other legacy encodings can be converted to UTF-8 before import. Original EXP
+hotkeys are not activated; use slash commands and the overlay shortcut.
+
+Imported audio is copied into the application's local data directory
+(`~/.local/share/aridlin/VCTTS/sounds` by default), with an atomically saved
+`soundboard.json` library. Removing an entry leaves its copied audio available
+for recovery. Commands can be renamed independently of filenames. Existing
+names receive numeric suffixes; `/stop` is reserved. Local audio stays local.
+Playback uses the same headphone, optional extra output, volume controls and
+independent VCTTS virtual microphone route as speech. New playback replaces
+previous playback; the physical microphone bridge remains independently usable.
+Qt's FFmpeg media backend supports MP3, WAV, Ogg, FLAC and other installed codecs.
+
+`--test-soundboard`, with an isolated `XDG_CONFIG_HOME` / `XDG_DATA_HOME` and
+`VCTTS_TEST_SOUND` pointing at a local audio file longer than three seconds,
+checks import/persistence, slash suggestions, Tab, Enter, both output players,
+Stop and unknown commands. `VCTTS_TEST_SCREENSHOT` saves the autocomplete UI.
